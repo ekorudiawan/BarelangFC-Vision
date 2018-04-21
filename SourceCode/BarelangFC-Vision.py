@@ -371,6 +371,10 @@ def main():
 
 	rgbImage = cv2.imread("D:/RoboCupDataset/normal/gambar_normal_189.jpg")
 	modRgbImage = rgbImage.copy()
+
+	binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
+	# binaryMask[100:300, 100:400] = 255
+	
 	# loop = False
 	while(True):
 		blurRgbImage = cv2.GaussianBlur(rgbImage,(5,5),0)
@@ -390,6 +394,9 @@ def main():
 		pointOfContour = fieldContourExtraction(rgbImage,gBinary,2,1,80,False)
 		fieldContour = np.array(pointOfContour).reshape((-1,1,2)).astype(np.int32)
 		cv2.drawContours(modRgbImage,[fieldContour],0,(255,0,0),2)
+		
+		cv2.drawContours(binaryMask, [fieldContour], -1, 255, -1)
+		# binaryMaskedImage = cv2.bitwise_and(gBinary,gBinary,mask = binaryMask)
 
 		gBinaryInvert = cv2.bitwise_not(gBinary)
 		kernel = np.ones((5,5),np.uint8)
@@ -398,27 +405,29 @@ def main():
 		kernel = np.ones((5,5),np.uint8)
 		dnsize = 2
 		gBinaryInvertDilate = cv2.dilate(gBinaryInvertErode,kernel,iterations = dnsize)
+		gBinaryInvertDilate = cv2.bitwise_and(gBinaryInvertDilate,binaryMask)
 		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
 
-		_, listBallContours, hierarchy = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		_, listBallContours, _ = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listBallContours) > 0:
 			listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
+			ballNumber = 0
 			for ballContour in listSortedBallContours:
 				ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
+				contourColor = (0,255,0)
+				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
 				rectPoint = rectToPoints(ballTopLeftX, ballTopLeftY, ballWidth, ballHeight)
-				# print rectPoint
-				# insideField = False
 				insideFieldContour = 0
-				# print "vtnt"
+
+				# Deteksi kotak benar-benar didalam contour
+				'''
 				for point in range(0,4):
-					# print "Rect {} {}".format(rectPoint[titik][0],rectPoint[titik][1])
 					resultTest = cv2.pointPolygonTest(fieldContour,(rectPoint[point][0],rectPoint[point][1]),False)
-					# resultTest = cv2.pointPolygonTest(fieldContour,(point[0],point[1]),False)
-					# print resultTest
 					if resultTest == 1:
 						insideFieldContour += 1
-				
 				# Jika semua titik di dalam contour lapangan
+				'''
+				insideFieldContour = 4
 				if insideFieldContour == 4:
 					insideFieldContour = 0
 					# Machine learning parameter
@@ -432,26 +441,18 @@ def main():
 					ballHull = cv2.convexHull(ballContour)
 					ballHullArea = cv2.contourArea(ballHull)
 					ballSolidity = float(ballArea)/ballHullArea
-					# Print contour properties
-					print "Contour properties : {} {} {}".format(ballAspectRatio, ballExtent, ballSolidity)
-					
+										
 					ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
-
-					ballHistogram = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
-					# plt.plot(ballHistogram)
-					# plt.show()
+					ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+					# Print contour properties
+					print "Ball {} Properties : {} {} {} {} {} {} {} {} {} {}".format(ballNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0])
 
 					ballColor = (244, 66, 0)
-					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)	
 
-					if ballHistogram[2] > 800:
-						ballColor = (244, 66, 66)
-						# Gambar kotak
-						cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
-				
-
+				ballNumber += 1
 		cv2.imshow("Barelang Vision", modRgbImage)
-		cv2.imshow("Barelang", gBinaryInvertDilate)
+		cv2.imshow("Bola Image", gBinaryInvertDilate)
 		k = cv2.waitKey(1)
 		if k == ord('x'):
 			break
