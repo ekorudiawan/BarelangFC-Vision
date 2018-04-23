@@ -376,9 +376,11 @@ def main():
 
 	# binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
 	# binaryMask[100:300, 100:400] = 255
-	
+	npDataset = np.zeros((1,11))
+	print npDataset
 	# loop = False
 	iteration = 1
+	dataNumber = 1
 	while(True):
 		fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(iteration) + ".jpg"
 		# print (fileGambar)
@@ -439,6 +441,9 @@ def main():
 									
 				ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
 				ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0]])
+				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+				# print npData
 				# Print contour properties
 				# print 'Ball Properties : {} {} {} {} {} {} {} {} {} {} '.format(ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0])
 
@@ -446,6 +451,7 @@ def main():
 				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)	
 
 				ballNumber += 1
+				dataNumber += 1
 				
 		cv2.imshow("Barelang Vision", modRgbImage)
 		cv2.imshow("Bola Image", gBinaryInvertDilate)
@@ -457,6 +463,7 @@ def main():
 		while exitCommand == -1:
 			k = cv2.waitKey(1)
 			if k == ord('x'):
+				np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4")
 				exitCommand = 1
 				break
 			elif k == ord('n'):
