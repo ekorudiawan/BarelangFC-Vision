@@ -2,6 +2,7 @@
 
 #######################
 ## Standard imports
+from numba import jit
 import os
 import cv2
 import numpy as np
@@ -252,7 +253,7 @@ def order_points(pts):
 IMAGE_WIDTH = 640
 HALF_IMAGE_WIDTH = IMAGE_WIDTH / 2
 IMAGE_HEIGHT = 480
-
+@jit
 def transToImgFrame(x,y):
     # x = x + 160
     x = x + HALF_IMAGE_WIDTH
@@ -260,14 +261,17 @@ def transToImgFrame(x,y):
     return (x,y)
 
 # Polar to cartesian 
+@jit
 def polToCart(radius, theta):
     x = int(radius * math.cos(math.radians(theta)))
     y = int(radius * math.sin(math.radians(theta)))
     return (x,y)
 
+@jit
 def distancePointToPoint(p0, p1):
     return math.sqrt(((p1[0]-p0[0])*(p1[0]-p0[0])) + ((p1[1]-p0[1])*(p1[1]-p0[1])))
 
+@jit
 def rectToPoints(rectTopLeftX, rectTopLeftY, rectWidth, rectHeight):
     npPtRect = np.zeros((4,2), dtype=int)
     # top left     
@@ -287,67 +291,65 @@ def rectToPoints(rectTopLeftX, rectTopLeftY, rectWidth, rectHeight):
 
 # fungsi rotate scan, input berupa hsv output berupa rgb yang hanya gambar lapangan saja
 # enableDebug digunakan untuk menampilkan gambar hasil proses
-def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, noiseThreshold, enableDebug):
-    npPoint = np.zeros((1,2), dtype=int)
-    outputImage = inputImage.copy()
-    maxLength = int(math.sqrt(HALF_IMAGE_WIDTH*HALF_IMAGE_WIDTH+IMAGE_HEIGHT*IMAGE_HEIGHT))
-    totalPoint = 0
-    lastLength = 0
-    angle = 180
-    while angle >= 0:
-        foundGreen = False
-        lastFoundGreen = False
-        length = maxLength
-        while length >= 0:
-            x,y =  polToCart(length,angle)
-            x,y =  transToImgFrame(x,y)
-            if x >= 0 and x < IMAGE_WIDTH and y >= 0 and y < IMAGE_HEIGHT:          
-                if foundGreen == False:
-                    warna = inputBinaryImage.item(y,x) 
-            else:
-                warna = 0
 
-            # Jika belum ketemu hijau
-            if foundGreen == False:
-                # Ketemu warna hijau
-                if warna == 255:
-                    arrayLength, _ = npPoint.shape
-                    if arrayLength >= 2:
-                        deltaLength = distancePointToPoint(npPoint[-2,:2], [x,y])
-                    else:
-                        deltaLength = 0
-                    if angle == 179:
-                        foundGreen = True
-                    else:
-                        if deltaLength < noiseThreshold:
-                            foundGreen = True
-                    # Update gambar dan np point
-                    if foundGreen == True:
-                        npPoint = np.insert(npPoint, totalPoint, [x,y],axis=0)
-                        if enableDebug == True:
-                            color = (0,0,255)
-                            cv2.circle(outputImage,(x,y), 2, color, -1)
-                        totalPoint += 1
-                        foundGreen == True  
-                        lastLength = length
-            else:
-                break
-            lastFoundGreen = foundGreen
-            length = length - lengthStep
-        angle = angle - angleStep
+def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, noiseThreshold, enableDebug):
+	npPoint = np.zeros((1,2), dtype=int)
+	outputImage = inputImage.copy()
+	maxLength = int(math.sqrt(HALF_IMAGE_WIDTH*HALF_IMAGE_WIDTH+IMAGE_HEIGHT*IMAGE_HEIGHT))
+	totalPoint = 0
+	lastLength = 0
+	angle = 180
+	while angle >= 0:
+		foundGreen = False
+		lastFoundGreen = False
+		length = maxLength
+		while length >= 0:
+			x,y =  polToCart(length,angle)
+			x,y =  transToImgFrame(x,y)
+			if x >= 0 and x < IMAGE_WIDTH and y >= 0 and y < IMAGE_HEIGHT:          
+				if foundGreen == False:
+					warna = inputBinaryImage.item(y,x) 
+			else:
+				warna = 0
+
+			# Jika belum ketemu hijau
+			if foundGreen == False:
+				# Ketemu warna hijau
+				if warna == 255:
+					arrayLength, _ = npPoint.shape
+					if arrayLength >= 2:
+						deltaLength = distancePointToPoint(npPoint[-2,:2], [x,y])
+					else:
+						deltaLength = 0
+					if angle == 179:
+						foundGreen = True
+					else:
+						if deltaLength < noiseThreshold:
+							foundGreen = True
+					# Update gambar dan np point
+					if foundGreen == True:
+						npPoint = np.insert(npPoint, totalPoint, [x,y],axis=0)
+						if enableDebug == True:
+							color = (0,0,255)
+							cv2.circle(outputImage,(x,y), 2, color, -1)
+						totalPoint += 1
+						foundGreen == True  
+						lastLength = length
+			else:
+				break
+			lastFoundGreen = foundGreen
+			length = length - lengthStep
+		angle = angle - angleStep
     # Delete point yang terakhir
     # tambahkan point 0 dan point akhir
     # npPoint = np.insert(npPoint, 0, [0,IMAGE_HEIGHT-1],axis=0)
     # npPoint = np.insert(npPoint, -1, [IMAGE_WIDTH-1,IMAGE_HEIGHT-1],axis=0)
-    npPoint = np.delete(npPoint, -1, axis=0)
-    if enableDebug == True:
-        plt.imshow(outputImage)
-        plt.title('Output Image')
-        plt.show()
-    return npPoint
-
-
-
+	npPoint = np.delete(npPoint, -1, axis=0)
+	if enableDebug == True:
+		plt.imshow(outputImage)
+		plt.title('Output Image')
+		plt.show()
+	return npPoint
 
 def main():
 	# Read image
@@ -362,23 +364,31 @@ def main():
 
 	
 	cv2.setTrackbarPos('G HMin','Control',30)
-	cv2.setTrackbarPos('G SMin','Control',75)
+	cv2.setTrackbarPos('G SMin','Control',40)
 	cv2.setTrackbarPos('G VMin','Control',75)
 
 	cv2.setTrackbarPos('G HMax','Control',85)
 	cv2.setTrackbarPos('G SMax','Control',255)
 	cv2.setTrackbarPos('G VMax','Control',255)
 
-	rgbImage = cv2.imread("D:/RoboCupDataset/normal/gambar_normal_189.jpg")
-	modRgbImage = rgbImage.copy()
+	
+	# modRgbImage = rgbImage.copy()
 
-	binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
+	# binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
 	# binaryMask[100:300, 100:400] = 255
 	
 	# loop = False
+	iteration = 1
 	while(True):
+		fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(iteration) + ".jpg"
+		# print (fileGambar)
+		rgbImage = cv2.imread(fileGambar)
+		# ini gak bagus
+		binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
+		modRgbImage = rgbImage.copy()
 		blurRgbImage = cv2.GaussianBlur(rgbImage,(5,5),0)
 		hsvImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2HSV)
+
 		# Create trackbar		
 		gHMax = cv2.getTrackbarPos('G HMax','Control')
 		gHMin = cv2.getTrackbarPos('G HMin','Control')
@@ -391,12 +401,11 @@ def main():
 		upperGreen = np.array([gHMax,gSMax,gVMax])
 		gBinary = cv2.inRange(hsvImage, lowerGreen, upperGreen)
 
-		pointOfContour = fieldContourExtraction(rgbImage,gBinary,2,1,80,False)
-		fieldContour = np.array(pointOfContour).reshape((-1,1,2)).astype(np.int32)
-		cv2.drawContours(modRgbImage,[fieldContour],0,(255,0,0),2)
-		
-		cv2.drawContours(binaryMask, [fieldContour], -1, 255, -1)
-		# binaryMaskedImage = cv2.bitwise_and(gBinary,gBinary,mask = binaryMask)
+		_, listFieldContours, _ = cv2.findContours(gBinary.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		if len(listFieldContours) > 0:
+			fieldContours = sorted(listFieldContours, key=cv2.contourArea, reverse=True)[:1]
+			cv2.drawContours(modRgbImage,[fieldContours[0]],0,(255,255,0),2)
+			cv2.drawContours(binaryMask, [fieldContours[0]], -1, 255, -1)
 
 		gBinaryInvert = cv2.bitwise_not(gBinary)
 		kernel = np.ones((5,5),np.uint8)
@@ -416,45 +425,45 @@ def main():
 				ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
 				contourColor = (0,255,0)
 				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
-				rectPoint = rectToPoints(ballTopLeftX, ballTopLeftY, ballWidth, ballHeight)
-				insideFieldContour = 0
+				# Machine learning parameter
+				# Aspect Ratio is the ratio of width to height of bounding rect of the object.
+				ballAspectRatio = float(ballWidth)/ballHeight
+				# Extent is the ratio of contour area to bounding rectangle area.
+				ballArea = cv2.contourArea(ballContour)
+				ballRectArea = ballWidth*ballHeight
+				ballExtent = float(ballArea)/ballRectArea
+				# Solidity is the ratio of contour area to its convex hull area.
+				ballHull = cv2.convexHull(ballContour)
+				ballHullArea = cv2.contourArea(ballHull)
+				ballSolidity = float(ballArea)/ballHullArea
+									
+				ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
+				ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+				# Print contour properties
+				# print 'Ball Properties : {} {} {} {} {} {} {} {} {} {} '.format(ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0])
 
-				# Deteksi kotak benar-benar didalam contour
-				'''
-				for point in range(0,4):
-					resultTest = cv2.pointPolygonTest(fieldContour,(rectPoint[point][0],rectPoint[point][1]),False)
-					if resultTest == 1:
-						insideFieldContour += 1
-				# Jika semua titik di dalam contour lapangan
-				'''
-				insideFieldContour = 4
-				if insideFieldContour == 4:
-					insideFieldContour = 0
-					# Machine learning parameter
-					# Aspect Ratio is the ratio of width to height of bounding rect of the object.
-					ballAspectRatio = float(ballWidth)/ballHeight
-					# Extent is the ratio of contour area to bounding rectangle area.
-					ballArea = cv2.contourArea(ballContour)
-					ballRectArea = ballWidth*ballHeight
-					ballExtent = float(ballArea)/ballRectArea
-					# Solidity is the ratio of contour area to its convex hull area.
-					ballHull = cv2.convexHull(ballContour)
-					ballHullArea = cv2.contourArea(ballHull)
-					ballSolidity = float(ballArea)/ballHullArea
-										
-					ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
-					ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
-					# Print contour properties
-					print "Ball {} Properties : {} {} {} {} {} {} {} {} {} {}".format(ballNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0])
-
-					ballColor = (244, 66, 0)
-					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)	
+				ballColor = (244, 66, 0)
+				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)	
 
 				ballNumber += 1
+				
 		cv2.imshow("Barelang Vision", modRgbImage)
 		cv2.imshow("Bola Image", gBinaryInvertDilate)
-		k = cv2.waitKey(1)
-		if k == ord('x'):
+		# cv2.imshow("Bola Image", gBinary)
+		# k = cv2.waitKey(1)
+		# if k == ord('x'):
+		# 	break
+		exitCommand = -1
+		while exitCommand == -1:
+			k = cv2.waitKey(1)
+			if k == ord('x'):
+				exitCommand = 1
+				break
+			elif k == ord('n'):
+				exitCommand = 0
+				iteration += 1
+				break
+		if exitCommand == 1:
 			break
 '''
 def main_lama():
