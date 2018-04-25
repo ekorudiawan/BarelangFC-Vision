@@ -45,7 +45,7 @@ goal_wh_ratio = 0
 im_width = 640
 im_height = 480
 im_area = im_width * im_height
-iteration = 1
+imageNumber = 1
 debug_mode = 1
 debug_goal = 0
 debug_ballmode1 = 0
@@ -352,6 +352,16 @@ def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, 
 	return npPoint
 
 def main():
+	# Nanti didefinisikan di global ya
+	contourColor = (0,255,0)
+	ballColor = (0, 0, 255)
+	npDataset = np.zeros((1,13))
+	imageNumber = 67
+	dataNumber = 1
+	ballNumber = 0
+	ballContourLen = 0
+	ballMode = 0
+
 	# Read image
 	cv2.namedWindow('Control')
 	cv2.createTrackbar('G HMin','Control',0,255,nothing)
@@ -361,7 +371,6 @@ def main():
 	cv2.createTrackbar('G HMax','Control',255,255,nothing)
 	cv2.createTrackbar('G SMax','Control',255,255,nothing)
 	cv2.createTrackbar('G VMax','Control',255,255,nothing)
-
 	
 	cv2.setTrackbarPos('G HMin','Control',30)
 	cv2.setTrackbarPos('G SMin','Control',40)
@@ -371,21 +380,11 @@ def main():
 	cv2.setTrackbarPos('G SMax','Control',255)
 	cv2.setTrackbarPos('G VMax','Control',255)
 
-	
-	# modRgbImage = rgbImage.copy()
-
-	# binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
-	# binaryMask[100:300, 100:400] = 255
-	npDataset = np.zeros((1,11))
-	print npDataset
-	# loop = False
-	iteration = 1
-	dataNumber = 1
 	while(True):
-		fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(iteration) + ".jpg"
+		fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
 		rgbImage = cv2.imread(fileGambar)
-		# ini gak bagus
+		# ini gak bagus harusnya deklarasi diatas
 		binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
 		modRgbImage = rgbImage.copy()
 		blurRgbImage = cv2.GaussianBlur(rgbImage,(5,5),0)
@@ -419,59 +418,90 @@ def main():
 		gBinaryInvertDilate = cv2.bitwise_and(gBinaryInvertDilate,binaryMask)
 		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
 
+		# Deteksi mode 1
 		_, listBallContours, _ = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listBallContours) > 0:
 			listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
-			ballNumber = 0
+			ballContourLen = len(listSortedBallContours)
+			# print ballContourLen
+			ballIteration = 0
 			for ballContour in listSortedBallContours:
 				ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
-				contourColor = (0,255,0)
-				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
-				# Machine learning parameter
-				# Aspect Ratio is the ratio of width to height of bounding rect of the object.
-				ballAspectRatio = float(ballWidth)/ballHeight
-				# Extent is the ratio of contour area to bounding rectangle area.
-				ballArea = cv2.contourArea(ballContour)
-				ballRectArea = ballWidth*ballHeight
-				ballExtent = float(ballArea)/ballRectArea
-				# Solidity is the ratio of contour area to its convex hull area.
-				ballHull = cv2.convexHull(ballContour)
-				ballHullArea = cv2.contourArea(ballHull)
-				ballSolidity = float(ballArea)/ballHullArea
-									
-				ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
-				ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
-				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0]])
-				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
-				# print npData
-				# Print contour properties
-				# print 'Ball Properties : {} {} {} {} {} {} {} {} {} {} '.format(ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0])
-
-				ballColor = (244, 66, 0)
-				cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)	
-
-				ballNumber += 1
-				dataNumber += 1
 				
+				if ballNumber == ballIteration:
+					# Machine learning parameter
+					ballMode = 0
+					# Aspect Ratio is the ratio of width to height of bounding rect of the object.
+					ballAspectRatio = float(ballWidth)/ballHeight
+					# Extent is the ratio of contour area to bounding rectangle area.
+					ballArea = cv2.contourArea(ballContour)
+					ballRectArea = ballWidth*ballHeight
+					ballExtent = float(ballArea)/ballRectArea
+					# Solidity is the ratio of contour area to its convex hull area.
+					ballHull = cv2.convexHull(ballContour)
+					ballHullArea = cv2.contourArea(ballHull)
+					ballSolidity = float(ballArea)/ballHullArea
+										
+					ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
+					ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+				else:
+					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
+				ballIteration += 1
+
+		font = cv2.FONT_HERSHEY_SIMPLEX
+		textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, dataNumber)
+		cv2.putText(modRgbImage,textLine,(10,20), font, 0.4,(0,0,255),1,cv2.LINE_AA)
 		cv2.imshow("Barelang Vision", modRgbImage)
 		cv2.imshow("Bola Image", gBinaryInvertDilate)
-		# cv2.imshow("Bola Image", gBinary)
-		# k = cv2.waitKey(1)
-		# if k == ord('x'):
-		# 	break
-		exitCommand = -1
-		while exitCommand == -1:
-			k = cv2.waitKey(1)
-			if k == ord('x'):
-				np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4")
-				exitCommand = 1
-				break
-			elif k == ord('n'):
-				exitCommand = 0
-				iteration += 1
-				break
-		if exitCommand == 1:
+
+		k = cv2.waitKey(1)
+		# Exit and Save data to CSV
+		if k == ord('x'):
+			np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
 			break
+		# Next Image
+		elif k == ord('n'):
+			imageNumber += 1
+		# Prev Image
+		elif k == ord('p'):
+			imageNumber -= 1
+		# Next Contour
+		elif k == ord('c'):
+			ballNumber += 1
+			if ballNumber >= ballContourLen:
+				ballNumber = 0
+				imageNumber += 1
+		# Prev Contour
+		elif k == ord('z'):
+			ballNumber -= 1
+			if ballNumber < 0:
+				ballNumber = 0
+				imageNumber -= 1
+		# Mark as Ball and insert to array
+		elif k == ord('b'):
+			isBall = 1
+			npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+			npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+			ballNumber += 1
+			if ballNumber >= ballContourLen:
+				ballNumber = 0
+				imageNumber += 1
+			dataNumber += 1
+		# Mark as not Ball and insert to array
+		elif k == ord('m'):
+			isBall = 0
+			npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+			npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+			ballNumber += 1
+			if ballNumber >= ballContourLen:
+				ballNumber = 0
+				imageNumber += 1
+			dataNumber += 1
+		# Save to CSV
+		elif k == ord('s'):
+			np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+
 '''
 def main_lama():
 	#######################
@@ -489,10 +519,10 @@ def main_lama():
 		ret, im = cap.read()
 
 		# Read image
-		#im = cv2.imread("images/acak%d.jpg"%iteration)
-		#im = cv2.imread("/home/barelangfc/Foto_BolaPutih/my_photo-%d.jpg"%iteration)
+		#im = cv2.imread("images/acak%d.jpg"%imageNumber)
+		#im = cv2.imread("/home/barelangfc/Foto_BolaPutih/my_photo-%d.jpg"%imageNumber)
 		#im = cv2.imread("/home/barelangfc/python/my_photo-1.jpg")
-		#print("images/acak%d.jpg"%iteration)
+		#print("images/acak%d.jpg"%imageNumber)
 
 		image = cv2.resize(im, (im_width, im_height),interpolation = cv2.INTER_AREA)
 		grayscale_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
@@ -509,17 +539,17 @@ def main_lama():
 		f_upper_val = np.array([hfmax,sfmax,vfmax])
 		parsefield = cv2.inRange(hsv_blur_image,f_lower_val,f_upper_val)
 		kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(2,2))
-		dilate_parsefield = cv2.dilate(parsefield, kernel, iterations = dfsize)
-		#erode_parsefield = cv2.erode(parsefield,(20,20),iterations = efsize)
-		#dilate_parsefield = cv2.dilate(erode_parsefield,(20,20),iterations = dfsize)
+		dilate_parsefield = cv2.dilate(parsefield, kernel, imageNumbers = dfsize)
+		#erode_parsefield = cv2.erode(parsefield,(20,20),imageNumbers = efsize)
+		#dilate_parsefield = cv2.dilate(erode_parsefield,(20,20),imageNumbers = dfsize)
 
 		#detection goal
 		goal_colorConv_image = cv2.cvtColor(image,cv2.COLOR_BGR2YUV)
 		g_lower_val = np.array([hgmin,sgmin,vgmin])
 		g_upper_val = np.array([hgmax,sgmax,vgmax])
 		parsegoal = cv2.inRange(goal_colorConv_image,g_lower_val,g_upper_val)
-		erode_parsegoal = cv2.erode(parsegoal,kernel,iterations = egsize)
-		dilate_parsegoal = cv2.dilate(erode_parsegoal,kernel,iterations = dgsize)
+		erode_parsegoal = cv2.erode(parsegoal,kernel,imageNumbers = egsize)
+		dilate_parsegoal = cv2.dilate(erode_parsegoal,kernel,imageNumbers = dgsize)
 
 		# bola mode 1 --> threshold hijau
 		# Invert warna lapangan untuk deteksi bola
@@ -561,16 +591,16 @@ def main_lama():
 		n_upper_val = np.array([hnmax,snmax,vnmax])
 		parseball_inv_binary = cv2.inRange(hsv_field_image,n_lower_val,n_upper_val)
 		parseball_invert_field = cv2.bitwise_not(parseball_inv_binary)
-		erode_parseball_invert_field = cv2.erode(parseball_invert_field,kernel,iterations = ensize) #5
-		dilate_parseball_invert_field = cv2.dilate(erode_parseball_invert_field,kernel,iterations = dnsize)
+		erode_parseball_invert_field = cv2.erode(parseball_invert_field,kernel,imageNumbers = ensize) #5
+		dilate_parseball_invert_field = cv2.dilate(erode_parseball_invert_field,kernel,imageNumbers = dnsize)
 		#print '%d'%(ensize)
 
 		ball_colorConv_image = cv2.cvtColor(field_image,cv2.COLOR_BGR2YUV)
 		b_lower_val = np.array([hbmin,sbmin,vbmin])
 		b_upper_val = np.array([hbmax,sbmax,vbmax])
 		parseball_white = cv2.inRange(ball_colorConv_image,b_lower_val,b_upper_val)
-		erode_parseball_white = cv2.erode(parseball_white,kernel,iterations = ebsize) #2
-		dilate_parseball_white = cv2.dilate(erode_parseball_white,kernel,iterations = dbsize) #2
+		erode_parseball_white = cv2.erode(parseball_white,kernel,imageNumbers = ebsize) #2
+		dilate_parseball_white = cv2.dilate(erode_parseball_white,kernel,imageNumbers = dbsize) #2
 		#cv2.imshow("erode", erode_parseball_white)
 
 		#cv2.rectangle(image_scaled, (field_x,field_y), (field_x + field_w, field_y + field_h), (0, 255, 0), 3)
@@ -599,7 +629,7 @@ def main_lama():
 			if len(b_contours) > 0:
 				b_sorted_contours = sorted(b_contours, key=cv2.contourArea, reverse=True)[:5]
 				ball_found =  False
-				ball_iteration = 1;
+				ball_imageNumber = 1;
 				#cv2.drawContours(image, b_sorted_contours, -1, (0,255,255),3)
 				for b_cntr in b_sorted_contours:
 					# Initialize ball parameter value
@@ -648,8 +678,8 @@ def main_lama():
 
 					if debug_ballmode1 == 1:
 						selected_ball = cv2.getTrackbarPos('Ball','Control')
-						if selected_ball == ball_iteration:
-							print 'Ball Number %d ==> X = %d Y = %d W = %d H = %d Radius = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f Percent_Wh = %.2f'%(ball_iteration,ball_centre_x,ball_centre_y,ball_width,ball_height,ball_radius,ball_area,ball_rect_area,ball_area_ratio,ball_wh_ratio, percent_white)
+						if selected_ball == ball_imageNumber:
+							print 'Ball Number %d ==> X = %d Y = %d W = %d H = %d Radius = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f Percent_Wh = %.2f'%(ball_imageNumber,ball_centre_x,ball_centre_y,ball_width,ball_height,ball_radius,ball_area,ball_rect_area,ball_area_ratio,ball_wh_ratio, percent_white)
 							ball_color = (244, 66, 66)
 						else:
 							ball_color = (31,127,255)
@@ -667,7 +697,7 @@ def main_lama():
 											cv2.circle(image, (int(ball_centre_x), int(ball_centre_y)), ball_radius, (255,255,255), 3)
 											cv2.circle(image, (int(ball_centre_x), int(ball_centre_y)), 5, (0,255,0), -1)
 										break
-					ball_iteration += 1;
+					ball_imageNumber += 1;
 
 			# Ball detection mode 2
 			# mode 2 digunakan khusus bola dekat yg tdk bisa terdeteksi oleh mode 1
@@ -677,7 +707,7 @@ def main_lama():
 			if len(b_wh_contours) > 0:
 				b_wh_sorted_contours = sorted(b_wh_contours, key=cv2.contourArea, reverse=True)[:5]
 				ball_found =  False
-				ball_iteration = 1;
+				ball_imageNumber = 1;
 				for b_wh_cntr in b_wh_sorted_contours:
 					# Initialize ball parameter value
 					ball_centre_x = -1
@@ -738,8 +768,8 @@ def main_lama():
 
 					if debug_ballmode2 == 1:
 						selected_ball = cv2.getTrackbarPos('Ball','Control')
-						if selected_ball == ball_iteration:
-							print 'Ball Number %d ==> X = %d Y = %d W = %d H = %d Radius = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f Percent_Wh = %.2f'%(ball_iteration,ball_centre_x,ball_centre_y,ball_width,ball_height,ball_radius,ball_area,ball_rect_area,ball_area_ratio,ball_wh_ratio, percent_white)
+						if selected_ball == ball_imageNumber:
+							print 'Ball Number %d ==> X = %d Y = %d W = %d H = %d Radius = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f Percent_Wh = %.2f'%(ball_imageNumber,ball_centre_x,ball_centre_y,ball_width,ball_height,ball_radius,ball_area,ball_rect_area,ball_area_ratio,ball_wh_ratio, percent_white)
 							ball_color = (244, 66, 66)
 						else:
 							ball_color = (31,127,255)
@@ -758,7 +788,7 @@ def main_lama():
 											cv2.circle(image, (int(ball_centre_x), int(ball_centre_y)), ball_width/2 , (0,0,0), 3)
 											cv2.circle(image, (int(ball_centre_x), int(ball_centre_y)), 5, (255,255,255), -1)
 											break
-					ball_iteration += 1;
+					ball_imageNumber += 1;
 
 		if ball_found == False:
 			ball_centre_x = -1
@@ -779,7 +809,7 @@ def main_lama():
 		goal_found = False
 		if len(g_contours) > 0:
 			g_sorted_contours = sorted(g_contours, key=cv2.contourArea, reverse=True)[:10]
-			goal_iteration = 1;
+			goal_imageNumber = 1;
 			for g_cntr in g_sorted_contours:
 				x_box,y_box,w_box,h_box = cv2.boundingRect(g_cntr)
 				goal_centre_x_box = x_box + (w_box // 2)
@@ -813,8 +843,8 @@ def main_lama():
 				#
 				if debug_goal == 1:
 					selected_goal = cv2.getTrackbarPos('Goal','Control')
-					if selected_goal == goal_iteration :
-						print 'Goal Num %d ==> X = %d Y = %d W = %d H = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f'%(goal_iteration, goal_centre_x,goal_centre_y,goal_width,goal_height,goal_area,goal_rect_area,goal_area_ratio,goal_wh_ratio)
+					if selected_goal == goal_imageNumber :
+						print 'Goal Num %d ==> X = %d Y = %d W = %d H = %d Area = %.2f R_Area = %.2f Area_Rat = %.2f WH_Rat = %.2f'%(goal_imageNumber, goal_centre_x,goal_centre_y,goal_width,goal_height,goal_area,goal_rect_area,goal_area_ratio,goal_wh_ratio)
 						goal_color = (0, 0, 255)
 					else:
 						goal_color = (255, 255, 255)
@@ -841,7 +871,7 @@ def main_lama():
 								#	cv2.circle(image, (int(x), int(y)), 7, color, -1)
 								#	cv2.circle(image, (int(goal_centre_x), int(goal_centre_y)), 7, (31,127,255), -1)
 								break
-				goal_iteration += 1;
+				goal_imageNumber += 1;
 		if goal_found == False:
 			goal_centre_x = -1
 			goal_centre_y = -1
@@ -939,9 +969,9 @@ def main_lama():
 			cv2.destroyAllWindows()
 			mod1 = mod2 = False
 		elif k == ord('d'):
-			iteration += 1
+			imageNumber += 1
 		elif k == ord('a'):
-			iteration -= 1
+			imageNumber -= 1
 
 		elif k == ord('f'):
 			cv2.destroyAllWindows()
