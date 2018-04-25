@@ -1,8 +1,12 @@
-# Python 2.7 BarelangFC-Vision.py
+######################################################################
+# BarelangFC Vision V2.0                                             #
+# By : Eko Rudiawan                                                  #
+#                                                                    #
+# We use machine learning to solve ball and goal recognition problem #
+#                                                                    #
+######################################################################
 
-#######################
-## Standard imports
-from numba import jit
+# Standard imports
 import os
 import cv2
 import numpy as np
@@ -13,13 +17,13 @@ import time
 import math
 import matplotlib.pyplot as plt
 import matplotlib
-# from imutils import perspective
-# from imutils import contours
+from sklearn import tree
+from sklearn.externals import joblib
 
-#######################
-##global variable
+# Global variable
 dummyImage = np.zeros((120,750,3), np.uint8)
 xxxImage = np.zeros((640,480,3), np.uint8)
+
 # Initialize ball parameter value
 ball_centre_x = -1
 ball_centre_y = -1
@@ -247,13 +251,18 @@ def order_points(pts):
 	(goal_bottom_right, goal_top_right) = rightMost[np.argsort(D)[::-1], :]
 	return np.array([goal_top_left, goal_top_right, goal_bottom_right, goal_bottom_left], dtype="float32")
 
-############ NEW FUNCTION #################
+#########################################################
+# New Function
+# Will be implemented in version 3.0
+# Will be moved to Cython to speed up for-loop iteration
+#########################################################
+
 # Transform scanning coordinat to camera coordinat
 # Definisi umum
 IMAGE_WIDTH = 640
 HALF_IMAGE_WIDTH = IMAGE_WIDTH / 2
 IMAGE_HEIGHT = 480
-@jit
+
 def transToImgFrame(x,y):
     # x = x + 160
     x = x + HALF_IMAGE_WIDTH
@@ -261,17 +270,14 @@ def transToImgFrame(x,y):
     return (x,y)
 
 # Polar to cartesian 
-@jit
 def polToCart(radius, theta):
     x = int(radius * math.cos(math.radians(theta)))
     y = int(radius * math.sin(math.radians(theta)))
     return (x,y)
 
-@jit
 def distancePointToPoint(p0, p1):
     return math.sqrt(((p1[0]-p0[0])*(p1[0]-p0[0])) + ((p1[1]-p0[1])*(p1[1]-p0[1])))
 
-@jit
 def rectToPoints(rectTopLeftX, rectTopLeftY, rectWidth, rectHeight):
     npPtRect = np.zeros((4,2), dtype=int)
     # top left     
@@ -286,12 +292,9 @@ def rectToPoints(rectTopLeftX, rectTopLeftY, rectWidth, rectHeight):
     # bottom right     
     npPtRect[3,0] = rectTopLeftX + rectWidth
     npPtRect[3,1] = rectTopLeftY + rectHeight
-    
     return npPtRect
 
-# fungsi rotate scan, input berupa hsv output berupa rgb yang hanya gambar lapangan saja
-# enableDebug digunakan untuk menampilkan gambar hasil proses
-
+# This is the next improvement
 def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, noiseThreshold, enableDebug):
 	npPoint = np.zeros((1,2), dtype=int)
 	outputImage = inputImage.copy()
@@ -356,12 +359,15 @@ def main():
 	contourColor = (0,255,0)
 	ballColor = (0, 0, 255)
 	npDataset = np.zeros((1,13))
+	ballProperties = np.zeros((1,11))
 	imageNumber = 67
 	dataNumber = 1
 	ballNumber = 0
 	ballContourLen = 0
 	ballMode = 0
-
+	ballFound = False
+	trainMode = False
+	model = tree.DecisionTreeClassifier()
 	# Read image
 	cv2.namedWindow('Control')
 	cv2.createTrackbar('G HMin','Control',0,255,nothing)
@@ -419,35 +425,80 @@ def main():
 		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
 
 		# Deteksi mode 1
-		_, listBallContours, _ = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-		if len(listBallContours) > 0:
-			listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
-			ballContourLen = len(listSortedBallContours)
-			# print ballContourLen
-			ballIteration = 0
-			for ballContour in listSortedBallContours:
-				ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
-				
-				if ballNumber == ballIteration:
-					# Machine learning parameter
-					ballMode = 0
-					# Aspect Ratio is the ratio of width to height of bounding rect of the object.
-					ballAspectRatio = float(ballWidth)/ballHeight
-					# Extent is the ratio of contour area to bounding rectangle area.
-					ballArea = cv2.contourArea(ballContour)
-					ballRectArea = ballWidth*ballHeight
-					ballExtent = float(ballArea)/ballRectArea
-					# Solidity is the ratio of contour area to its convex hull area.
-					ballHull = cv2.convexHull(ballContour)
-					ballHullArea = cv2.contourArea(ballHull)
-					ballSolidity = float(ballArea)/ballHullArea
-										
-					ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
-					ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
-					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
-				else:
-					cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
-				ballIteration += 1
+		if ballFound == False:
+			_, listBallContours, _ = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+			if len(listBallContours) > 0:
+				listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
+				ballContourLen = len(listSortedBallContours)
+				ballIteration = 0
+				for ballContour in listSortedBallContours:
+					ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
+					if trainMode == True:
+						if ballNumber == ballIteration:
+							# Machine learning parameter
+							ballMode = 0
+							# Aspect Ratio is the ratio of width to height of bounding rect of the object.
+							ballAspectRatio = float(ballWidth) / float(ballHeight)
+							# Extent is the ratio of contour area to bounding rectangle area.
+							ballArea = float(cv2.contourArea(ballContour))
+							ballRectArea = float(ballWidth) * float(ballHeight)
+							ballExtent = float(ballArea) / float(ballRectArea)
+							# Solidity is the ratio of contour area to its convex hull area.
+							ballHull = cv2.convexHull(ballContour)
+							ballHullArea = cv2.contourArea(ballHull)
+							ballSolidity = float(ballArea) / float(ballHullArea)
+												
+							ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
+							ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+							# Rescaling to percent
+							sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
+							ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
+							ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
+							ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
+							ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
+							ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
+							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+						else:
+							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
+						ballIteration += 1
+
+					# Load model from file and run the algorithm with the model
+					else:
+						# load machine learning model from file
+						filename = 'BarelangFC-Model.sav'
+						model = joblib.load(filename)
+
+						# Get contour properties
+						# Machine learning parameter
+						ballMode = 0
+						# Aspect Ratio is the ratio of width to height of bounding rect of the object.
+						ballAspectRatio = float(ballWidth) / float(ballHeight)
+						# Extent is the ratio of contour area to bounding rectangle area.
+						ballArea = float(cv2.contourArea(ballContour))
+						ballRectArea = float(ballWidth) * float(ballHeight)
+						ballExtent = float(ballArea) / float(ballRectArea)
+						# Solidity is the ratio of contour area to its convex hull area.
+						ballHull = cv2.convexHull(ballContour)
+						ballHullArea = cv2.contourArea(ballHull)
+						ballSolidity = float(ballArea) / float(ballHullArea)
+											
+						ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
+						ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+						# Rescaling to percent
+						sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
+						ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
+						ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
+						ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
+						ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
+						ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
+						ballParameter = np.array([ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode])
+						ballProperties = np.insert(ballProperties, 0, ballParameter , axis = 0)
+						ballProperties = np.delete(ballProperties, -1, axis=0)
+						ballPrediction = model.predict_proba(ballProperties)
+						if ballPrediction[0,1] == 1:
+							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+						else:
+							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, dataNumber)
@@ -456,52 +507,72 @@ def main():
 		cv2.imshow("Bola Image", gBinaryInvertDilate)
 
 		k = cv2.waitKey(1)
-		# Exit and Save data to CSV
-		if k == ord('x'):
-			np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
-			break
-		# Next Image
-		elif k == ord('n'):
-			imageNumber += 1
-		# Prev Image
-		elif k == ord('p'):
-			imageNumber -= 1
-		# Next Contour
-		elif k == ord('c'):
-			ballNumber += 1
-			if ballNumber >= ballContourLen:
-				ballNumber = 0
+		if trainMode == True:
+			# Exit and Save data to CSV
+			if k == ord('x'):
+				np.savetxt('ballDataset.csv', npDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+				break
+			# Next Image
+			elif k == ord('n'):
 				imageNumber += 1
-		# Prev Contour
-		elif k == ord('z'):
-			ballNumber -= 1
-			if ballNumber < 0:
-				ballNumber = 0
+			# Prev Image
+			elif k == ord('p'):
 				imageNumber -= 1
-		# Mark as Ball and insert to array
-		elif k == ord('b'):
-			isBall = 1
-			npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
-			npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
-			ballNumber += 1
-			if ballNumber >= ballContourLen:
-				ballNumber = 0
+			# Next Contour
+			elif k == ord('c'):
+				ballNumber += 1
+				if ballNumber >= ballContourLen:
+					ballNumber = 0
+					imageNumber += 1
+			# Prev Contour
+			elif k == ord('z'):
+				ballNumber -= 1
+				if ballNumber < 0:
+					ballNumber = 0
+					imageNumber -= 1
+			# Mark as Ball and insert to array
+			elif k == ord('b'):
+				isBall = 1
+				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+				ballNumber += 1
+				if ballNumber >= ballContourLen:
+					ballNumber = 0
+					imageNumber += 1
+				dataNumber += 1
+			# Mark as not Ball and insert to array
+			elif k == ord('m'):
+				isBall = 0
+				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+				ballNumber += 1
+				if ballNumber >= ballContourLen:
+					ballNumber = 0
+					imageNumber += 1
+				dataNumber += 1
+			# Save to CSV
+			elif k == ord('s'):
+				np.savetxt('ballDataset.csv', npDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+			# Load CSV convert to Np
+			# Train data
+			elif k == ord('t'):
+				npDataset = np.delete(npDataset, -1, axis=0)
+				inputTraining = npDataset[:,1:12]
+				outputTraining = npDataset[:,-1]
+				model = model.fit(inputTraining, outputTraining)
+				filename = 'BarelangFC-Model.sav'
+				joblib.dump(model, filename)
+				testPrediksi = model.predict_proba(inputTraining)
+				print 'hasil pred'
+				print testPrediksi
+			# Save model
+		else:
+			if k == ord('x'):
+				break
+			elif k == ord('n'):
 				imageNumber += 1
-			dataNumber += 1
-		# Mark as not Ball and insert to array
-		elif k == ord('m'):
-			isBall = 0
-			npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
-			npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
-			ballNumber += 1
-			if ballNumber >= ballContourLen:
-				ballNumber = 0
-				imageNumber += 1
-			dataNumber += 1
-		# Save to CSV
-		elif k == ord('s'):
-			np.savetxt('ballDataset.csv', npDataset, fmt='%.2f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
-
+			elif k == ord('p'):
+				imageNumber -= 1
 '''
 def main_lama():
 	#######################
