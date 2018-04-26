@@ -355,6 +355,17 @@ def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, 
 	return npPoint
 
 def main():
+	# Running Mode
+	# 0 : Running Program
+	# 1 : Training Data
+	# 2 : Generate Image
+	runningMode = 1
+
+	# Machine learning model will be saved to this file
+	filename = 'BarelangFC-Model.sav'
+	# Declare the decission tree classifier 
+	mlModel = tree.DecisionTreeClassifier()
+
 	# Nanti didefinisikan di global ya
 	contourColor = (0,255,0)
 	ballColor = (0, 0, 255)
@@ -366,54 +377,104 @@ def main():
 	ballContourLen = 0
 	ballMode = 0
 	ballFound = False
-	trainMode = False
-	model = tree.DecisionTreeClassifier()
+
 	# Read image
-	cv2.namedWindow('Control')
-	cv2.createTrackbar('G HMin','Control',0,255,nothing)
-	cv2.createTrackbar('G SMin','Control',0,255,nothing)
-	cv2.createTrackbar('G VMin','Control',0,255,nothing)
+	cv2.namedWindow('Control G')
+	cv2.createTrackbar('G HMin','Control G',0,255,nothing)
+	cv2.createTrackbar('G SMin','Control G',0,255,nothing)
+	cv2.createTrackbar('G VMin','Control G',0,255,nothing)
 
-	cv2.createTrackbar('G HMax','Control',255,255,nothing)
-	cv2.createTrackbar('G SMax','Control',255,255,nothing)
-	cv2.createTrackbar('G VMax','Control',255,255,nothing)
+	cv2.createTrackbar('G HMax','Control G',255,255,nothing)
+	cv2.createTrackbar('G SMax','Control G',255,255,nothing)
+	cv2.createTrackbar('G VMax','Control G',255,255,nothing)
 	
-	cv2.setTrackbarPos('G HMin','Control',30)
-	cv2.setTrackbarPos('G SMin','Control',40)
-	cv2.setTrackbarPos('G VMin','Control',75)
+	cv2.setTrackbarPos('G HMin','Control G',30)
+	cv2.setTrackbarPos('G SMin','Control G',40)
+	cv2.setTrackbarPos('G VMin','Control G',75)
 
-	cv2.setTrackbarPos('G HMax','Control',85)
-	cv2.setTrackbarPos('G SMax','Control',255)
-	cv2.setTrackbarPos('G VMax','Control',255)
+	cv2.setTrackbarPos('G HMax','Control G',85)
+	cv2.setTrackbarPos('G SMax','Control G',255)
+	cv2.setTrackbarPos('G VMax','Control G',255)
+	# Putih
+	cv2.namedWindow('Control W')
+	cv2.createTrackbar('W HMin','Control W',0,255,nothing)
+	cv2.createTrackbar('W SMin','Control W',0,255,nothing)
+	cv2.createTrackbar('W VMin','Control W',0,255,nothing)
+
+	cv2.createTrackbar('W HMax','Control W',255,255,nothing)
+	cv2.createTrackbar('W SMax','Control W',255,255,nothing)
+	cv2.createTrackbar('W VMax','Control W',255,255,nothing)
+	
+	cv2.setTrackbarPos('W HMin','Control W',75)
+	cv2.setTrackbarPos('W SMin','Control W',0)
+	cv2.setTrackbarPos('W VMin','Control W',100)
+
+	cv2.setTrackbarPos('W HMax','Control W',255)
+	cv2.setTrackbarPos('W SMax','Control W',75)
+	cv2.setTrackbarPos('W VMax','Control W',255)
+
+	if runningMode == 0:
+		print 'Running Mode'
+		# Program run from live camera
+		# load machine learning model from file
+		mlModel = joblib.load(filename)
+	elif runningMode == 1:
+		# Program test mlModel from image
+		mlModel = joblib.load(filename)
+		print 'Test Dataset'
+	elif runningMode == 2:
+		print 'Train Dataset'
+	elif runningMode == 3:
+		print 'Generate Image Dataset'
 
 	while(True):
-		fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+		ballFound = False
+		# Ini nanti diganti dengan load dari file
+		# Create trackbar		
+		gHMax = cv2.getTrackbarPos('G HMax','Control G')
+		gHMin = cv2.getTrackbarPos('G HMin','Control G')
+		gSMax = cv2.getTrackbarPos('G SMax','Control G')
+		gSMin = cv2.getTrackbarPos('G SMin','Control G')
+		gVMax = cv2.getTrackbarPos('G VMax','Control G')
+		gVMin = cv2.getTrackbarPos('G VMin','Control G')
+
+		wHMax = cv2.getTrackbarPos('W HMax','Control W')
+		wHMin = cv2.getTrackbarPos('W HMin','Control W')
+		wSMax = cv2.getTrackbarPos('W SMax','Control W')
+		wSMin = cv2.getTrackbarPos('W SMin','Control W')
+		wVMax = cv2.getTrackbarPos('W VMax','Control W')
+		wVMin = cv2.getTrackbarPos('W VMin','Control W')
+
+		if runningMode == 0:
+			# ini nanti diganti dari live cam
+			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+		if runningMode == 1:
+			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+		if runningMode == 2:
+			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
 		rgbImage = cv2.imread(fileGambar)
 		# ini gak bagus harusnya deklarasi diatas
 		binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
 		modRgbImage = rgbImage.copy()
+		# Preprocessing
 		blurRgbImage = cv2.GaussianBlur(rgbImage,(5,5),0)
+		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
 		hsvImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2HSV)
 
-		# Create trackbar		
-		gHMax = cv2.getTrackbarPos('G HMax','Control')
-		gHMin = cv2.getTrackbarPos('G HMin','Control')
-		gSMax = cv2.getTrackbarPos('G SMax','Control')
-		gSMin = cv2.getTrackbarPos('G SMin','Control')
-		gVMax = cv2.getTrackbarPos('G VMax','Control')
-		gVMin = cv2.getTrackbarPos('G VMin','Control')
-
+		# Green Filtering
 		lowerGreen = np.array([gHMin,gSMin,gVMin])
 		upperGreen = np.array([gHMax,gSMax,gVMax])
 		gBinary = cv2.inRange(hsvImage, lowerGreen, upperGreen)
 
+		# Field Contour Detection
 		_, listFieldContours, _ = cv2.findContours(gBinary.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listFieldContours) > 0:
 			fieldContours = sorted(listFieldContours, key=cv2.contourArea, reverse=True)[:1]
 			cv2.drawContours(modRgbImage,[fieldContours[0]],0,(255,255,0),2)
 			cv2.drawContours(binaryMask, [fieldContours[0]], -1, 255, -1)
 
+		# Ball Mode 1 Binarization
 		gBinaryInvert = cv2.bitwise_not(gBinary)
 		kernel = np.ones((5,5),np.uint8)
 		ensize = 2
@@ -421,22 +482,80 @@ def main():
 		kernel = np.ones((5,5),np.uint8)
 		dnsize = 2
 		gBinaryInvertDilate = cv2.dilate(gBinaryInvertErode,kernel,iterations = dnsize)
-		gBinaryInvertDilate = cv2.bitwise_and(gBinaryInvertDilate,binaryMask)
-		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
+		ballGreen = cv2.bitwise_and(gBinaryInvertDilate,binaryMask)
 
-		# Deteksi mode 1
-		if ballFound == False:
-			_, listBallContours, _ = cv2.findContours(gBinaryInvertDilate.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		# White Filtering
+		lowerWhite = np.array([wHMin,wSMin,wVMin])
+		upperWhite = np.array([wHMax,wSMax,wVMax])
+		wBinary = cv2.inRange(hsvImage, lowerWhite, upperWhite)
+
+		# Ball Mode 2 Binarization
+		kernel = np.ones((5,5),np.uint8)
+		ensize = 2
+		wBinaryErode = cv2.erode(wBinary,kernel,iterations = ensize)
+		kernel = np.ones((5,5),np.uint8)
+		dnsize = 2
+		wBinaryDilate = cv2.dilate(wBinaryErode,kernel,iterations = dnsize)
+		ballWhite = cv2.bitwise_and(wBinaryDilate,binaryMask)
+
+		# Ball Detection
+		ballFound = False
+		ballContourLen = 0
+		ballIteration = 0
+		for ballDetectionMode in range(0, 2):
+			if ballDetectionMode == 0:
+				_, listBallContours, _ = cv2.findContours(ballGreen.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+			else:
+				_, listBallContours, _ = cv2.findContours(ballWhite.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
 			if len(listBallContours) > 0:
 				listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
-				ballContourLen = len(listSortedBallContours)
-				ballIteration = 0
+				ballContourLen += len(listSortedBallContours)
 				for ballContour in listSortedBallContours:
 					ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
-					if trainMode == True:
+					if runningMode == 0 or runningMode == 1:
+						# Load model from file and run the algorithm with the model
+						# Get contour properties
+						# Machine learning parameter
+						ballMode = ballDetectionMode
+						# Aspect Ratio is the ratio of width to height of bounding rect of the object.
+						ballAspectRatio = float(ballWidth) / float(ballHeight)
+						# Extent is the ratio of contour area to bounding rectangle area.
+						ballArea = float(cv2.contourArea(ballContour))
+						ballRectArea = float(ballWidth) * float(ballHeight)
+						ballExtent = float(ballArea) / float(ballRectArea)
+						# Solidity is the ratio of contour area to its convex hull area.
+						ballHull = cv2.convexHull(ballContour)
+						ballHullArea = cv2.contourArea(ballHull)
+						if ballHullArea > 0:
+							ballSolidity = float(ballArea) / float(ballHullArea)
+						else:
+							ballSolidity = 0
+											
+						ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
+						ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
+						# Rescaling to percent
+						sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
+						ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
+						ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
+						ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
+						ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
+						ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
+						ballParameter = np.array([ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode])
+						ballProperties = np.insert(ballProperties, 0, ballParameter , axis = 0)
+						ballProperties = np.delete(ballProperties, -1, axis=0)
+						ballPrediction = mlModel.predict_proba(ballProperties)
+						# print ballPrediction
+						# Yes, it is a ball
+						if ballPrediction[0,1] == 1:
+							# Set variable to skip next step							
+							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+							ballFound = True
+							break	
+					elif runningMode == 2:
 						if ballNumber == ballIteration:
 							# Machine learning parameter
-							ballMode = 0
+							ballMode = ballDetectionMode
 							# Aspect Ratio is the ratio of width to height of bounding rect of the object.
 							ballAspectRatio = float(ballWidth) / float(ballHeight)
 							# Extent is the ratio of contour area to bounding rectangle area.
@@ -446,7 +565,11 @@ def main():
 							# Solidity is the ratio of contour area to its convex hull area.
 							ballHull = cv2.convexHull(ballContour)
 							ballHullArea = cv2.contourArea(ballHull)
-							ballSolidity = float(ballArea) / float(ballHullArea)
+
+							if ballHullArea > 0:
+								ballSolidity = float(ballArea) / float(ballHullArea)
+							else:
+								ballSolidity = 0
 												
 							ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
 							ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
@@ -461,53 +584,30 @@ def main():
 						else:
 							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
 						ballIteration += 1
+			if ballFound == True:
+				break
 
-					# Load model from file and run the algorithm with the model
-					else:
-						# load machine learning model from file
-						filename = 'BarelangFC-Model.sav'
-						model = joblib.load(filename)
-
-						# Get contour properties
-						# Machine learning parameter
-						ballMode = 0
-						# Aspect Ratio is the ratio of width to height of bounding rect of the object.
-						ballAspectRatio = float(ballWidth) / float(ballHeight)
-						# Extent is the ratio of contour area to bounding rectangle area.
-						ballArea = float(cv2.contourArea(ballContour))
-						ballRectArea = float(ballWidth) * float(ballHeight)
-						ballExtent = float(ballArea) / float(ballRectArea)
-						# Solidity is the ratio of contour area to its convex hull area.
-						ballHull = cv2.convexHull(ballContour)
-						ballHullArea = cv2.contourArea(ballHull)
-						ballSolidity = float(ballArea) / float(ballHullArea)
-											
-						ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
-						ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
-						# Rescaling to percent
-						sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
-						ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
-						ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
-						ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
-						ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
-						ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
-						ballParameter = np.array([ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode])
-						ballProperties = np.insert(ballProperties, 0, ballParameter , axis = 0)
-						ballProperties = np.delete(ballProperties, -1, axis=0)
-						ballPrediction = model.predict_proba(ballProperties)
-						if ballPrediction[0,1] == 1:
-							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
-						else:
-							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
+		
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, dataNumber)
 		cv2.putText(modRgbImage,textLine,(10,20), font, 0.4,(0,0,255),1,cv2.LINE_AA)
 		cv2.imshow("Barelang Vision", modRgbImage)
-		cv2.imshow("Bola Image", gBinaryInvertDilate)
+		cv2.imshow("Ball Green", ballGreen)
+		cv2.imshow("Ball White", ballWhite)
 
 		k = cv2.waitKey(1)
-		if trainMode == True:
+		if runningMode == 0 or runningMode == 1:
+			# print 'masuk sini'
+			if k == ord('x'):
+				cv2.destroyAllWindows()
+				break
+			elif k == ord('n'):
+				# print 'next'
+				imageNumber += 1
+			elif k == ord('p'):
+				imageNumber -= 1
+		elif runningMode == 2:
 			# Exit and Save data to CSV
 			if k == ord('x'):
 				np.savetxt('ballDataset.csv', npDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
@@ -559,20 +659,10 @@ def main():
 				npDataset = np.delete(npDataset, -1, axis=0)
 				inputTraining = npDataset[:,1:12]
 				outputTraining = npDataset[:,-1]
-				model = model.fit(inputTraining, outputTraining)
-				filename = 'BarelangFC-Model.sav'
-				joblib.dump(model, filename)
-				testPrediksi = model.predict_proba(inputTraining)
-				print 'hasil pred'
-				print testPrediksi
+				mlModel = mlModel.fit(inputTraining, outputTraining)
+				joblib.dump(mlModel, filename)
 			# Save model
-		else:
-			if k == ord('x'):
-				break
-			elif k == ord('n'):
-				imageNumber += 1
-			elif k == ord('p'):
-				imageNumber -= 1
+
 '''
 def main_lama():
 	#######################
