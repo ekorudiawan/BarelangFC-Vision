@@ -59,7 +59,20 @@ stream = True
 mod1 = False
 mod2 = False
 
-#######################
+# Global variable for thresholding
+lowerFieldGr = np.zeros(3)
+upperFieldGr = 255 * np.ones(3)
+edFieldGr = np.zeros(2)
+lowerBallGr = np.zeros(3)
+upperBallGr = 255 * np.ones(3)
+edBallGr = np.zeros(2)
+lowerBallWh = np.zeros(3)
+upperBallWh = 255 * np.ones(3)
+edBallWh = np.zeros(2)
+lowerGoalWh = np.zeros(3)
+upperGoalWh = 255 * np.ones(3)
+edGoalWh = np.zeros(2)
+
 ##socket
 import socket
 import sys
@@ -71,121 +84,98 @@ except socket.error:
 	print 'Failed to create socket'
 	sys.exit()
 
-#######################
-##functions
-def help():
-	print''
-	print'----------BarelangFC-Vision-----------'
-	print'Help ----------------------------- [H]'
-	print'Parse Ball Not Field (Mode 1)----- [N]'
-	print'Parse Ball White-----(Mode 2)----- [B]'
-	print'Parse Field ---------------------- [F]'
-	print'Parse Goal ----------------------- [G]'
-	print'Save Config ---------------------- [S]'
-	print'Load Config ---------------------- [L]'
-	print'Next Iterations [Image View] ----- [A]'
-	print'Previous Iterations [Image View] - [D]'
-	print'Destroy All Windows -------------- [R]'
-	print'Exit BarelangFC-Vision ----------- [X]'
-	print''
-	return None
+def showHelp():
+	print ''
+	print '----------BarelangFC-Vision-----------'
+	print 'Help ----------------------------- [H]'
+	print 'Parse Ball Not Field (Mode 1)----- [N]'
+	print 'Parse Ball White-----(Mode 2)----- [B]'
+	print 'Parse Field ---------------------- [F]'
+	print 'Parse Goal ----------------------- [G]'
+	print 'Save Config ---------------------- [S]'
+	print 'Load Config ---------------------- [L]'
+	print 'Next Iterations [Image View] ----- [A]'
+	print 'Previous Iterations [Image View] - [D]'
+	print 'Destroy All Windows -------------- [R]'
+	print 'Exit BarelangFC-Vision ----------- [X]'
+	print ''
 
 def createTrackbars(mode):
 	cv2.namedWindow('Control')
-	#field
+	# Special for setting blur image
+	# Only available for field setting 
 	if mode==1:
 		cv2.createTrackbar('Field Blur','Control',0,10,nothing)
-		#cv2.createTrackbar('Dilate','Control',0,10,nothing)
-	#goal
-	elif mode==2:
-		cv2.createTrackbar('Debug Goal','Control',0,1,nothing)
-		cv2.createTrackbar('Goal','Control',0,20,nothing)
-	#ball
-	elif mode==3:
-		cv2.createTrackbar('Debug Ball Mode2','Control',0,1,nothing)
-		cv2.createTrackbar('Ball','Control',0,20,nothing)
-
-	elif mode==4:
-		cv2.createTrackbar('Debug Ball Mode1','Control',0,1,nothing)
-		cv2.createTrackbar('Ball','Control',0,20,nothing)
-
-	cv2.createTrackbar('HMax','Control',255,255,nothing)
+	# All setting parameter
 	cv2.createTrackbar('HMin','Control',0,255,nothing)
-	cv2.createTrackbar('SMax','Control',255,255,nothing)
 	cv2.createTrackbar('SMin','Control',0,255,nothing)
-	cv2.createTrackbar('VMax','Control',255,255,nothing)
 	cv2.createTrackbar('VMin','Control',0,255,nothing)
-
-	#if mode !=1:
+	cv2.createTrackbar('HMax','Control',255,255,nothing)
+	cv2.createTrackbar('SMax','Control',255,255,nothing)
+	cv2.createTrackbar('VMax','Control',255,255,nothing)
 	cv2.createTrackbar('Erode','Control',0,10,nothing)
 	cv2.createTrackbar('Dilate','Control',0,100,nothing)
 
-	return None
-
 def loadTrackbars(mode):
-	#field
-	if mode==1:
-		loadHighH = hfmax
-		loadLowH  = hfmin
-		loadHighS = sfmax
-		loadLowS  = sfmin
-		loadHighV = vfmax
-		loadLowV  = vfmin
-		loadEsize = efsize
-		loadDsize = dfsize
-	#goal
-	elif mode==2:
-		loadHighH = hgmax
-		loadLowH  = hgmin
-		loadHighS = sgmax
-		loadLowS  = sgmin
-		loadHighV = vgmax
-		loadLowV  = vgmin
-		loadEsize = egsize
-		loadDsize = dgsize
-	#ball mode 2 / parseWhite
-	elif mode==3:
-		loadHighH = hbmax
-		loadLowH  = hbmin
-		loadHighS = sbmax
-		loadLowS  = sbmin
-		loadHighV = vbmax
-		loadLowV  = vbmin
-		loadEsize = ebsize
-		loadDsize = dbsize
-	#ball mode 1 / notField
-	elif mode==4:
-		loadHighH = hnmax
-		loadLowH  = hnmin
-		loadHighS = snmax
-		loadLowS  = snmin
-		loadHighV = vnmax
-		loadLowV  = vnmin
-		loadEsize = ensize
-		loadDsize = dnsize
-
-	cv2.setTrackbarPos('HMax','Control',loadHighH)
-	cv2.setTrackbarPos('HMin','Control',loadLowH)
-	cv2.setTrackbarPos('SMax','Control',loadHighS)
-	cv2.setTrackbarPos('SMin','Control',loadLowS)
-	cv2.setTrackbarPos('VMax','Control',loadHighV)
-	cv2.setTrackbarPos('VMin','Control',loadLowV)
-	#if mode != 1:
-	cv2.setTrackbarPos('Erode','Control',loadEsize)
-	cv2.setTrackbarPos('Dilate','Control',loadDsize)
-	#else :
-	#	cv2.setTrackbarPos('Field Blur','Control',fblur/10)
-	return None
+	# Show Field
+	if mode == 1:
+		cv2.setTrackbarPos('HMin', 'Control', lowerFieldGr[0])
+		cv2.setTrackbarPos('SMin', 'Control', lowerFieldGr[1])
+		cv2.setTrackbarPos('VMin', 'Control', lowerFieldGr[2])
+		cv2.setTrackbarPos('HMax', 'Control', upperFieldGr[0])
+		cv2.setTrackbarPos('SMax', 'Control', upperFieldGr[1])
+		cv2.setTrackbarPos('VMax', 'Control', upperFieldGr[2])
+		cv2.setTrackbarPos('Erode', 'Control', edFieldGr[0])
+		cv2.setTrackbarPos('Dilate', 'Control', edFieldGr[1])
+	# Show Ball Green
+	elif mode == 2:
+		cv2.setTrackbarPos('HMin', 'Control', lowerBallGr[0])
+		cv2.setTrackbarPos('SMin', 'Control', lowerBallGr[1])
+		cv2.setTrackbarPos('VMin', 'Control', lowerBallGr[2])
+		cv2.setTrackbarPos('HMax', 'Control', upperBallGr[0])
+		cv2.setTrackbarPos('SMax', 'Control', upperBallGr[1])
+		cv2.setTrackbarPos('VMax', 'Control', upperBallGr[2])
+		cv2.setTrackbarPos('Erode', 'Control', edBallGr[0])
+		cv2.setTrackbarPos('Dilate', 'Control', edBallGr[1])
+	# Show Ball White
+	elif mode == 3:
+		cv2.setTrackbarPos('HMin', 'Control', lowerBallWh[0])
+		cv2.setTrackbarPos('SMin', 'Control', lowerBallWh[1])
+		cv2.setTrackbarPos('VMin', 'Control', lowerBallWh[2])
+		cv2.setTrackbarPos('HMax', 'Control', upperBallWh[0])
+		cv2.setTrackbarPos('SMax', 'Control', upperBallWh[1])
+		cv2.setTrackbarPos('VMax', 'Control', upperBallWh[2])
+		cv2.setTrackbarPos('Erode', 'Control', edBallWh[0])
+		cv2.setTrackbarPos('Dilate', 'Control', edBallWh[1])
+	# Show Goal
+	elif mode == 4:
+		cv2.setTrackbarPos('HMin', 'Control', lowerGoalWh[0])
+		cv2.setTrackbarPos('SMin', 'Control', lowerGoalWh[1])
+		cv2.setTrackbarPos('VMin', 'Control', lowerGoalWh[2])
+		cv2.setTrackbarPos('HMax', 'Control', upperGoalWh[0])
+		cv2.setTrackbarPos('SMax', 'Control', upperGoalWh[1])
+		cv2.setTrackbarPos('VMax', 'Control', upperGoalWh[2])
+		cv2.setTrackbarPos('Erode', 'Control', edGoalWh[0])
+		cv2.setTrackbarPos('Dilate', 'Control', edGoalWh[1])
 
 def saveConfig():
-	f = open("storageThreshold.txt","w")
-	data = '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d'%(hfmax,hfmin,sfmax,sfmin,vfmax,vfmin,efsize,dfsize,hgmax,hgmin,sgmax,sgmin,vgmax,vgmin,egsize,dgsize,hbmax,hbmin,sbmax,sbmin,vbmax,vbmin,ebsize,dbsize,hnmax,hnmin,snmax,snmin,vnmax,vnmin,ensize,dnsize,fblur)
-	f.write(data)
-	f.close()
-	print 'saved'
-	return None
+	npSettingValue = np.array([lowerFieldGr, upperFieldGr, edFieldGr, lowerBallGr, upperBallGr, edBallGr, lowerBallWh, upperBallWh, edBallWh, lowerGoalWh, upperGoalWh, edGoalWh])
+	npSettingValue = np.reshape(npSettingValue, 32)
+	headerLabel = '''F HMin, F SMin, F SMin, F HMax, F SMax, F SMax, F Erode, F Dilate, 
+					 B Gr HMin, B Gr SMin, B Gr SMin, B Gr HMax, B Gr SMax, B Gr SMax, B Gr Erode, B Gr Dilate,
+					 B Wh HMin, B Wh SMin, B Wh SMin, B Wh HMax, B Wh SMax, B Wh SMax, B Wh Erode, B Wh Dilate,
+					 G HMin, G SMin, G SMin, G HMax, G SMax, G SMax, G Erode, G Dilate'''
+
+	np.savetxt('settingParameter.csv', npSettingValue, fmt = '%d', delimiter = ',', header = headerLabel)
+				
+	# f = open("storageThreshold.txt","w")
+	# data = '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d'%(hfmax,hfmin,sfmax,sfmin,vfmax,vfmin,efsize,dfsize,hgmax,hgmin,sgmax,sgmin,vgmax,vgmin,egsize,dgsize,hbmax,hbmin,sbmax,sbmin,vbmax,vbmin,ebsize,dbsize,hnmax,hnmin,snmax,snmin,vnmax,vnmin,ensize,dnsize,fblur)
+	# f.write(data)
+	# f.close()
+	print 'Setting Parameter Saved'
 
 def loadConfig():
+	#  data = np.genfromtxt(path_to_csv, dtype=float, delimiter=',', names=True) 
 	global hfmax, hfmin, sfmax, sfmin, vfmax, vfmin, efsize, dfsize
 	global hgmax, hgmin, sgmax, sgmin, vgmax, vgmin, egsize, dgsize
 	global hbmax, hbmin, sbmax, sbmin, vbmax, vbmin, ebsize, dbsize
@@ -232,7 +222,6 @@ def loadConfig():
 		f.close
 		#`print '%d'%(sfmin)
 	print 'loaded'
-	return None
 
 def nothing(x):
 	pass
@@ -376,45 +365,9 @@ def main():
 	ballNumber = 0
 	ballContourLen = 0
 	ballMode = 0
-	ballFound = False
-
-	# Read image
-	cv2.namedWindow('Control G')
-	cv2.createTrackbar('G HMin','Control G',0,255,nothing)
-	cv2.createTrackbar('G SMin','Control G',0,255,nothing)
-	cv2.createTrackbar('G VMin','Control G',0,255,nothing)
-
-	cv2.createTrackbar('G HMax','Control G',255,255,nothing)
-	cv2.createTrackbar('G SMax','Control G',255,255,nothing)
-	cv2.createTrackbar('G VMax','Control G',255,255,nothing)
-	
-	cv2.setTrackbarPos('G HMin','Control G',30)
-	cv2.setTrackbarPos('G SMin','Control G',40)
-	cv2.setTrackbarPos('G VMin','Control G',75)
-
-	cv2.setTrackbarPos('G HMax','Control G',85)
-	cv2.setTrackbarPos('G SMax','Control G',255)
-	cv2.setTrackbarPos('G VMax','Control G',255)
-	# Putih
-	cv2.namedWindow('Control W')
-	cv2.createTrackbar('W HMin','Control W',0,255,nothing)
-	cv2.createTrackbar('W SMin','Control W',0,255,nothing)
-	cv2.createTrackbar('W VMin','Control W',0,255,nothing)
-
-	cv2.createTrackbar('W HMax','Control W',255,255,nothing)
-	cv2.createTrackbar('W SMax','Control W',255,255,nothing)
-	cv2.createTrackbar('W VMax','Control W',255,255,nothing)
-	
-	cv2.setTrackbarPos('W HMin','Control W',75)
-	cv2.setTrackbarPos('W SMin','Control W',0)
-	cv2.setTrackbarPos('W VMin','Control W',100)
-
-	cv2.setTrackbarPos('W HMax','Control W',255)
-	cv2.setTrackbarPos('W SMax','Control W',75)
-	cv2.setTrackbarPos('W VMax','Control W',255)
 
 	if runningMode == 0:
-		print 'Running Mode'
+		print 'Running From Live Cam'
 		# Program run from live camera
 		# load machine learning model from file
 		mlModel = joblib.load(filename)
@@ -423,90 +376,78 @@ def main():
 		mlModel = joblib.load(filename)
 		print 'Test Dataset'
 	elif runningMode == 2:
-		print 'Train Dataset'
+		print 'Train Ball Dataset'
 	elif runningMode == 3:
+		print 'Train Goal Dataset'
+	elif runningMode == 4:
 		print 'Generate Image Dataset'
 
+	# Image yang akan ditampilkan
+	imageToDisplay = 0
+	kernel = np.ones((5,5),np.uint8)
+	
 	while(True):
 		ballFound = False
 		# Ini nanti diganti dengan load dari file
 		# Create trackbar		
-		gHMax = cv2.getTrackbarPos('G HMax','Control G')
-		gHMin = cv2.getTrackbarPos('G HMin','Control G')
-		gSMax = cv2.getTrackbarPos('G SMax','Control G')
-		gSMin = cv2.getTrackbarPos('G SMin','Control G')
-		gVMax = cv2.getTrackbarPos('G VMax','Control G')
-		gVMin = cv2.getTrackbarPos('G VMin','Control G')
 
-		wHMax = cv2.getTrackbarPos('W HMax','Control W')
-		wHMin = cv2.getTrackbarPos('W HMin','Control W')
-		wSMax = cv2.getTrackbarPos('W SMax','Control W')
-		wSMin = cv2.getTrackbarPos('W SMin','Control W')
-		wVMax = cv2.getTrackbarPos('W VMax','Control W')
-		wVMin = cv2.getTrackbarPos('W VMin','Control W')
-
-		if runningMode == 0:
+		if runningMode == 0 or runningMode == 4:
 			# ini nanti diganti dari live cam
 			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
-		if runningMode == 1:
-			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
-		if runningMode == 2:
+		if runningMode == 1 or runningMode == 2 or runningMode == 3:
 			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
 		rgbImage = cv2.imread(fileGambar)
 		# ini gak bagus harusnya deklarasi diatas
-		binaryMask = np.zeros(rgbImage.shape[:2], np.uint8)
+
+		fieldMask = np.zeros(rgbImage.shape[:2], np.uint8)
+		notFieldMask = 255 * np.ones(rgbImage.shape[:2], np.uint8)
+		
+		# Color Conversion
 		modRgbImage = rgbImage.copy()
-		# Preprocessing
 		blurRgbImage = cv2.GaussianBlur(rgbImage,(5,5),0)
 		grayscaleImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2GRAY)
-		hsvImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2HSV)
+		hsvBlurImage = cv2.cvtColor(blurRgbImage, cv2.COLOR_BGR2HSV)
+		hsvImage = cv2.cvtColor(rgbImage, cv2.COLOR_BGR2HSV)
 
-		# Green Filtering
-		lowerGreen = np.array([gHMin,gSMin,gVMin])
-		upperGreen = np.array([gHMax,gSMax,gVMax])
-		gBinary = cv2.inRange(hsvImage, lowerGreen, upperGreen)
+		# Field Green Color Filtering
+		
+		fieldGrBinary = cv2.inRange(hsvBlurImage, lowerFieldGr, upperFieldGr)
+		fieldGrBinaryErode = cv2.erode(fieldGrBinary, kernel, iterations = edFieldGr[0])
+ 		fieldGrFinal = cv2.dilate(fieldGrBinaryErode, kernel, iterations = edFieldGr[1])
 
 		# Field Contour Detection
-		_, listFieldContours, _ = cv2.findContours(gBinary.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		_, listFieldContours, _ = cv2.findContours(fieldGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listFieldContours) > 0:
 			fieldContours = sorted(listFieldContours, key=cv2.contourArea, reverse=True)[:1]
 			cv2.drawContours(modRgbImage,[fieldContours[0]],0,(255,255,0),2)
-			cv2.drawContours(binaryMask, [fieldContours[0]], -1, 255, -1)
+			cv2.drawContours(fieldMask, [fieldContours[0]], -1, 255, -1)
+			cv2.drawContours(notFieldMask, [fieldContours[0]], -1, 0, -1)
 
-		# Ball Mode 1 Binarization
-		gBinaryInvert = cv2.bitwise_not(gBinary)
-		kernel = np.ones((5,5),np.uint8)
-		ensize = 2
-		gBinaryInvertErode = cv2.erode(gBinaryInvert,kernel,iterations = ensize)
-		kernel = np.ones((5,5),np.uint8)
-		dnsize = 2
-		gBinaryInvertDilate = cv2.dilate(gBinaryInvertErode,kernel,iterations = dnsize)
-		ballGreen = cv2.bitwise_and(gBinaryInvertDilate,binaryMask)
+		# Ball Green Filtering
+		ballGrBinary = cv2.inRange(hsvImage, lowerBallGr, upperBallGr)
+		ballGrBinaryInvert = cv2.bitwise_not(ballGrBinary)
+		
+		ballGrBinaryErode = cv2.erode(ballGrBinaryInvert,kernel,iterations = edBallGr[0])
+ 		ballGrBinaryDilate = cv2.dilate(ballGrBinaryErode,kernel,iterations = edBallGr[1])
+		ballGrFinal = cv2.bitwise_and(ballGrBinaryDilate, fieldMask)
 
-		# White Filtering
-		lowerWhite = np.array([wHMin,wSMin,wVMin])
-		upperWhite = np.array([wHMax,wSMax,wVMax])
-		wBinary = cv2.inRange(hsvImage, lowerWhite, upperWhite)
-
-		# Ball Mode 2 Binarization
-		kernel = np.ones((5,5),np.uint8)
-		ensize = 2
-		wBinaryErode = cv2.erode(wBinary,kernel,iterations = ensize)
-		kernel = np.ones((5,5),np.uint8)
-		dnsize = 2
-		wBinaryDilate = cv2.dilate(wBinaryErode,kernel,iterations = dnsize)
-		ballWhite = cv2.bitwise_and(wBinaryDilate,binaryMask)
+		# Ball White Filtering
+		ballWhBinary = cv2.inRange(hsvImage, lowerBallWh, upperBallWh)
+		ballWhBinaryErode = cv2.erode(ballWhBinary,kernel,iterations = edBallWh[0])
+		ballWhBinaryDilate = cv2.dilate(ballWhBinaryErode,kernel,iterations = edBallWh[1])
+		ballWhFinal = cv2.bitwise_and(ballWhBinaryDilate, fieldMask)
 
 		# Ball Detection
 		ballFound = False
 		ballContourLen = 0
 		ballIteration = 0
 		for ballDetectionMode in range(0, 2):
+			# print 'aa'
 			if ballDetectionMode == 0:
-				_, listBallContours, _ = cv2.findContours(ballGreen.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+				_, listBallContours, _ = cv2.findContours(ballGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 			else:
-				_, listBallContours, _ = cv2.findContours(ballWhite.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+				_, listBallContours, _ = cv2.findContours(ballWhFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 			if len(listBallContours) > 0:
 				listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
@@ -586,18 +527,169 @@ def main():
 						ballIteration += 1
 			if ballFound == True:
 				break
-
 		
+		# Goal Color Filtering
+		goalWhBinary = cv2.inRange(hsvImage, lowerGoalWh, upperGoalWh)
+		goalWhBinaryErode = cv2.erode(goalWhBinary,kernel,iterations = edGoalWh[0])
+		goalWhBinaryDilate = cv2.dilate(goalWhBinaryErode,kernel,iterations = edGoalWh[1])
+		goalWhFinal = cv2.bitwise_and(goalWhBinaryDilate,notFieldMask)
+
+		# Goal detection variable
+		# Tengah : 0 Kanan : 1 Kiri : -1
+		goalPosition = -99
+
+		goalFound = False
+		# Field Contour Detection
+		_, listGoalContours, _ = cv2.findContours(goalWhFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+		if len(listGoalContours) > 0:
+			listSortedGoalContours = sorted(listGoalContours, key=cv2.contourArea, reverse=True)[:3]
+			for goalContour in listSortedGoalContours:
+				cv2.drawContours(modRgbImage,[goalContour],0,(0,0,255),2)
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, dataNumber)
 		cv2.putText(modRgbImage,textLine,(10,20), font, 0.4,(0,0,255),1,cv2.LINE_AA)
-		cv2.imshow("Barelang Vision", modRgbImage)
-		cv2.imshow("Ball Green", ballGreen)
-		cv2.imshow("Ball White", ballWhite)
 
+		if imageToDisplay == 1:
+			lowerFieldGr[0] = cv2.getTrackbarPos('HMin','Control')
+			lowerFieldGr[1] = cv2.getTrackbarPos('SMin','Control')
+			lowerFieldGr[2] = cv2.getTrackbarPos('VMin','Control')
+			upperFieldGr[0] = cv2.getTrackbarPos('HMax','Control')
+			upperFieldGr[1] = cv2.getTrackbarPos('SMax','Control')
+			upperFieldGr[2] = cv2.getTrackbarPos('VMax','Control')
+			edFieldGr[0] = cv2.getTrackbarPos('Erode','Control')
+			edFieldGr[1] = cv2.getTrackbarPos('Dilate','Control')
+			cv2.imshow("Barelang Vision", modRgbImage)
+			cv2.imshow("Field Binary Image", fieldGrFinal)
+		elif imageToDisplay == 2: #bola mode 1
+			lowerBallGr[0] = cv2.getTrackbarPos('HMin','Control')
+			lowerBallGr[1] = cv2.getTrackbarPos('SMin','Control')
+			lowerBallGr[2] = cv2.getTrackbarPos('VMin','Control')
+			upperBallGr[0] = cv2.getTrackbarPos('HMax','Control')
+			upperBallGr[1] = cv2.getTrackbarPos('SMax','Control')
+			upperBallGr[2] = cv2.getTrackbarPos('VMax','Control')
+			edBallGr[0] = cv2.getTrackbarPos('Erode','Control')
+			edBallGr[1] = cv2.getTrackbarPos('Dilate','Control')
+			cv2.imshow("Barelang Vision", modRgbImage)
+			cv2.imshow("Ball Green Binary Image", ballGrFinal)
+		elif imageToDisplay == 3: #bola mode 2
+			lowerBallWh[0] = cv2.getTrackbarPos('HMin','Control')
+			lowerBallWh[1] = cv2.getTrackbarPos('SMin','Control')
+			lowerBallWh[2] = cv2.getTrackbarPos('VMin','Control')
+			upperBallWh[0] = cv2.getTrackbarPos('HMax','Control')
+			upperBallWh[1] = cv2.getTrackbarPos('SMax','Control')
+			upperBallWh[2] = cv2.getTrackbarPos('VMax','Control')
+			edBallWh[0] = cv2.getTrackbarPos('Erode','Control')
+			edBallWh[1] = cv2.getTrackbarPos('Dilate','Control')
+			cv2.imshow("Barelang Vision", modRgbImage)
+			cv2.imshow("Ball White Binary Image", ballWhFinal)
+		elif imageToDisplay == 4:
+			lowerGoalWh[0] = cv2.getTrackbarPos('HMin','Control')
+			lowerGoalWh[1] = cv2.getTrackbarPos('SMin','Control')
+			lowerGoalWh[2] = cv2.getTrackbarPos('VMin','Control')
+			upperGoalWh[0] = cv2.getTrackbarPos('HMax','Control')
+			upperGoalWh[1] = cv2.getTrackbarPos('SMax','Control')
+			upperGoalWh[2] = cv2.getTrackbarPos('VMax','Control')
+			edGoalWh[0] = cv2.getTrackbarPos('Erode','Control')
+			edGoalWh[1] = cv2.getTrackbarPos('Dilate','Control')
+			cv2.imshow("Barelang Vision", modRgbImage)
+			cv2.imshow("Goal Binary Image", goalWhFinal)
+		
+		'''
+		print '----------BarelangFC-Vision---------------------------------'
+		print '### All Running Mode ### -----------------------------------'	
+		print 'Parse Field -------------------------------------------- [1]'	
+		print 'Parse Ball Green (Mode 1) ------------------------------ [2]'
+		print 'Parse Ball White (Mode 2) ------------------------------ [3]'		
+		print 'Parse Goal --------------------------------------------- [4]'
+		print 'Save Filter Config ------------------------------------- [S]'
+		print 'Load Filter Config ------------------------------------- [L]'
+		print 'Destroy All Windows ------------------------------------ [0]'
+		print 'Help --------------------------------------------------- [H]'
+		print 'Exit BarelangFC-Vision --------------------------------- [X]'
+		print '### Testing Mode ### ---------------------------------------'
+		print 'Next Image --------------------------------------------- [N]'
+		print 'Previous Image ----------------------------------------- [P]'
+		print '### Training Mode ### --------------------------------------'
+		print 'Next Contour ------------------------------------------- [C]'
+		print 'Previous Contour --------------------------------------- [Z]'
+		print '### Ball Training Mode ### ---------------------------------'
+		print 'Mark as Ball ------------------------------------------- [B]'
+		print 'Mark as Not Ball --------------------------------------- [U]'
+		print 'Train Ball Dataset and Save ML Model ------------------- [T]'
+		print 'Save Ball Dataset to CSV ------------------------------- [D]'
+		print 'Load Ball Dataset from CSV, Train and Save ML Model ---- [M]' 
+		print '### Goal Training Mode ### ---------------------------------'
+		print 'Mark as Goal ------------------------------------------- [G]'
+		print 'Mark as Not Goal --------------------------------------- [U]'
+		print 'Train Goal Dataset and Save ML Model ------------------- [T]'
+		print 'Save Goal Dataset to CSV ------------------------------- [D]'
+		print 'Load Goal Dataset from CSV, Train and Save ML Model ---- [M]' 
+		'''
 		k = cv2.waitKey(1)
-		if runningMode == 0 or runningMode == 1:
+
+		if k == ord('x'):
+			break
+		
+		elif k == ord('d'):
+			imageNumber += 1
+		elif k == ord('a'):
+			imageNumber -= 1
+
+		elif k == ord('f'):
+			cv2.destroyAllWindows()			
+			imageToDisplay = 1
+			createTrackbars(imageToDisplay)
+			loadTrackbars(imageToDisplay)
+			print 'Setting Field Parameter'
+
+		elif k == ord('n'): 
+			cv2.destroyAllWindows()
+			imageToDisplay = 2 
+			createTrackbars(imageToDisplay)
+			loadTrackbars(imageToDisplay)
+			print 'Setting Ball Green Parameter'
+
+		elif k == ord('b'): 
+			cv2.destroyAllWindows()
+			imageToDisplay = 3 
+			createTrackbars(imageToDisplay)
+			loadTrackbars(imageToDisplay)
+			print 'Setting Ball White Parameter'
+
+		elif k == ord('g'):
+			cv2.destroyAllWindows()
+			imageToDisplay = 4 
+			createTrackbars(imageToDisplay)
+			loadTrackbars(imageToDisplay)
+			print 'Setting Goal Parameter'
+
+		elif k == ord('s'):
+			saveConfig()
+
+		elif k == ord('l'):
+			loadConfig()
+			loadTrackbars(imageToDisplay)
+
+		elif k == ord('r'):
+			imageToDisplay = 0
+			cv2.destroyAllWindows()
+
+		
+
+		
+
+		if runningMode == 0:
+			# print 'masuk sini'
+			if k == ord('x'):
+				cv2.destroyAllWindows()
+				break
+			elif k == ord('n'):
+				# print 'next'
+				imageNumber += 1
+			elif k == ord('p'):
+				imageNumber -= 1
+		elif runningMode == 1:
 			# print 'masuk sini'
 			if k == ord('x'):
 				cv2.destroyAllWindows()
