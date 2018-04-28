@@ -12,13 +12,20 @@ import cv2
 import numpy as np
 import datetime
 from scipy.spatial import distance as dist
-
 import time
 import math
 import matplotlib.pyplot as plt
 import matplotlib
 from sklearn import tree
 from sklearn.externals import joblib
+
+# Default filename to save all data
+imageDatasetPath = 'D:/RoboCupDataset/normal/gambar_normal_'
+settingValueFilename = 'BarelangFC-SettingValue.csv'
+ballDatasetFilename = 'BarelangFC-BallDataset.csv'
+ballMLFilename = 'BarelangFC-BallMLModel.sav'
+goalDatasetFilename = 'BarelangFC-GoalDataset.csv'
+goalMLFilename = 'BarelangFC-GoalMLModel.sav'
 
 # Global variable
 dummyImage = np.zeros((120,750,3), np.uint8)
@@ -86,25 +93,42 @@ except socket.error:
 
 def showHelp():
 	print ''
-	print '----------BarelangFC-Vision-----------'
-	print 'Help ----------------------------- [H]'
-	print 'Parse Ball Not Field (Mode 1)----- [N]'
-	print 'Parse Ball White-----(Mode 2)----- [B]'
-	print 'Parse Field ---------------------- [F]'
-	print 'Parse Goal ----------------------- [G]'
-	print 'Save Config ---------------------- [S]'
-	print 'Load Config ---------------------- [L]'
-	print 'Next Iterations [Image View] ----- [A]'
-	print 'Previous Iterations [Image View] - [D]'
-	print 'Destroy All Windows -------------- [R]'
-	print 'Exit BarelangFC-Vision ----------- [X]'
+	print '----------BarelangFC-Vision---------------------------------'
+	print '### All Running Mode ### -----------------------------------'	
+	print 'Parse Field -------------------------------------------- [1]'	
+	print 'Parse Ball Green (Mode 1) ------------------------------ [2]'
+	print 'Parse Ball White (Mode 2) ------------------------------ [3]'		
+	print 'Parse Goal --------------------------------------------- [4]'
+	print 'Save Filter Config ------------------------------------- [S]'
+	print 'Load Filter Config ------------------------------------- [L]'
+	print 'Destroy All Windows ------------------------------------ [0]'
+	print 'Help --------------------------------------------------- [H]'
+	print 'Exit BarelangFC-Vision --------------------------------- [X]'
+	print '### Testing Mode ### ---------------------------------------'
+	print 'Next Image --------------------------------------------- [N]'
+	print 'Previous Image ----------------------------------------- [P]'
+	print '### Training Mode ### --------------------------------------'
+	print 'Next Contour ------------------------------------------- [C]'
+	print 'Previous Contour --------------------------------------- [Z]'
+	print '### Ball Training Mode ### ---------------------------------'
+	print 'Mark as Ball ------------------------------------------- [B]'
+	print 'Mark as Not Ball --------------------------------------- [U]'
+	print 'Train Ball Dataset and Save ML Model ------------------- [T]'
+	print 'Save Ball Dataset to CSV ------------------------------- [D]'
+	print 'Load Ball Dataset from CSV, Train and Save ML Model ---- [M]' 
+	print '### Goal Training Mode ### ---------------------------------'
+	print 'Mark as Goal ------------------------------------------- [G]'
+	print 'Mark as Not Goal --------------------------------------- [U]'
+	print 'Train Goal Dataset and Save ML Model ------------------- [T]'
+	print 'Save Goal Dataset to CSV ------------------------------- [D]'
+	print 'Load Goal Dataset from CSV, Train and Save ML Model ---- [M]' 
 	print ''
 
 def createTrackbars(mode):
 	cv2.namedWindow('Control')
 	# Special for setting blur image
 	# Only available for field setting 
-	if mode==1:
+	if mode == 1:
 		cv2.createTrackbar('Field Blur','Control',0,10,nothing)
 	# All setting parameter
 	cv2.createTrackbar('HMin','Control',0,255,nothing)
@@ -351,29 +375,39 @@ def main():
 	runningMode = 1
 
 	# Machine learning model will be saved to this file
-	filename = 'BarelangFC-Model.sav'
+	# filename = 'BarelangFC-Model.sav'
 	# Declare the decission tree classifier 
-	mlModel = tree.DecisionTreeClassifier()
-
+	ballMLModel = tree.DecisionTreeClassifier()
+	goalMLModel = tree.DecisionTreeClassifier()
 	# Nanti didefinisikan di global ya
-	contourColor = (0,255,0)
+	contourColor = (0, 255, 0)
 	ballColor = (0, 0, 255)
-	npDataset = np.zeros((1,13))
+	goalColor = (255, 0, 0 )
+	npBallDataset = np.zeros((1,13))
+	npGoalDataset = np.zeros((1,12))
 	ballProperties = np.zeros((1,11))
+	goalProperties = np.zeros((1,10))
+
 	imageNumber = 67
-	dataNumber = 1
+	ballDataNumber = 1
+	goalDataNumber = 1
 	ballNumber = 0
+	goalNumber = 0
 	ballContourLen = 0
+	goalContourLen = 0
+
 	ballMode = 0
 
 	if runningMode == 0:
 		print 'Running From Live Cam'
 		# Program run from live camera
 		# load machine learning model from file
-		mlModel = joblib.load(filename)
+		ballMLModel = joblib.load(ballMLFilename)
+		goalMLModel = joblib.load(goalMLFilename)
 	elif runningMode == 1:
 		# Program test mlModel from image
-		mlModel = joblib.load(filename)
+		ballMLModel = joblib.load(ballMLFilename)
+		goalMLModel = joblib.load(goalMLFilename)
 		print 'Test Dataset'
 	elif runningMode == 2:
 		print 'Train Ball Dataset'
@@ -387,17 +421,16 @@ def main():
 	kernel = np.ones((5,5),np.uint8)
 	
 	while(True):
-		ballFound = False
 		# Ini nanti diganti dengan load dari file
 		# Create trackbar		
 
 		if runningMode == 0 or runningMode == 4:
 			# ini nanti diganti dari live cam
-			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		if runningMode == 1 or runningMode == 2 or runningMode == 3:
-			fileGambar = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
-		rgbImage = cv2.imread(fileGambar)
+		rgbImage = cv2.imread(rawImage)
 		# ini gak bagus harusnya deklarasi diatas
 
 		fieldMask = np.zeros(rgbImage.shape[:2], np.uint8)
@@ -476,16 +509,16 @@ def main():
 						ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
 						ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
 						# Rescaling to percent
-						sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
-						ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
-						ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
-						ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
-						ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
-						ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
+						sumBallHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
+						ballHistogram0[0] = float(ballHistogram0[0]) / sumBallHistogram
+						ballHistogram1[0] = float(ballHistogram1[0]) / sumBallHistogram
+						ballHistogram2[0] = float(ballHistogram2[0]) / sumBallHistogram
+						ballHistogram3[0] = float(ballHistogram3[0]) / sumBallHistogram
+						ballHistogram4[0] = float(ballHistogram4[0]) / sumBallHistogram
 						ballParameter = np.array([ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode])
 						ballProperties = np.insert(ballProperties, 0, ballParameter , axis = 0)
 						ballProperties = np.delete(ballProperties, -1, axis=0)
-						ballPrediction = mlModel.predict_proba(ballProperties)
+						ballPrediction = ballMLModel.predict_proba(ballProperties)
 						# print ballPrediction
 						# Yes, it is a ball
 						if ballPrediction[0,1] == 1:
@@ -515,12 +548,12 @@ def main():
 							ballRoi = grayscaleImage[ballTopLeftY:ballTopLeftY + ballHeight, ballTopLeftX:ballTopLeftX + ballWidth]
 							ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
 							# Rescaling to percent
-							sumHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
-							ballHistogram0[0] = float(ballHistogram0[0]) / sumHistogram
-							ballHistogram1[0] = float(ballHistogram1[0]) / sumHistogram
-							ballHistogram2[0] = float(ballHistogram2[0]) / sumHistogram
-							ballHistogram3[0] = float(ballHistogram3[0]) / sumHistogram
-							ballHistogram4[0] = float(ballHistogram4[0]) / sumHistogram
+							sumBallHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
+							ballHistogram0[0] = float(ballHistogram0[0]) / sumBallHistogram
+							ballHistogram1[0] = float(ballHistogram1[0]) / sumBallHistogram
+							ballHistogram2[0] = float(ballHistogram2[0]) / sumBallHistogram
+							ballHistogram3[0] = float(ballHistogram3[0]) / sumBallHistogram
+							ballHistogram4[0] = float(ballHistogram4[0]) / sumBallHistogram
 							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
 						else:
 							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
@@ -536,19 +569,86 @@ def main():
 
 		# Goal detection variable
 		# Tengah : 0 Kanan : 1 Kiri : -1
-		goalPosition = -99
-
+		# Set a magic number
+		goalPosition = -888
+		goalContourLen = 0
+		goalIteration = 0
 		goalFound = False
 		# Field Contour Detection
 		_, listGoalContours, _ = cv2.findContours(goalWhFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listGoalContours) > 0:
-			listSortedGoalContours = sorted(listGoalContours, key=cv2.contourArea, reverse=True)[:3]
+			listSortedGoalContours = sorted(listGoalContours, key=cv2.contourArea, reverse=True)[:5]
+			goalContourLen += len(listSortedGoalContours)
 			for goalContour in listSortedGoalContours:
-				cv2.drawContours(modRgbImage,[goalContour],0,(0,0,255),2)
+				goalTopLeftX, goalTopLeftY, goalWidth, goalHeight = cv2.boundingRect(goalContour)
+				cv2.drawContours(modRgbImage, [goalContour], 0, (0,0,255), 2)
+				if runningMode == 0 or runningMode == 1:
+					goalAspectRatio = float(goalWidth) / float(goalHeight)
+					goalArea = float(cv2.contourArea(goalContour))
+					goalRectArea = float(goalWidth) * float(goalHeight)
+					goalExtent = float(goalArea) / float(goalRectArea)
+					goalHull = cv2.convexHull(goalContour)
+					goalHullArea = cv2.contourArea(goalHull)
+					if goalHullArea > 0:
+						goalSolidity = float(goalArea) / float(goalHullArea)
+					else:
+						goalSolidity = 0
+										
+					goalRoi = grayscaleImage[goalTopLeftY:goalTopLeftY + goalHeight, goalTopLeftX:goalTopLeftX + goalWidth]
+					goalHistogram0, goalHistogram1, goalHistogram2, goalHistogram3, goalHistogram4 = cv2.calcHist([goalRoi], [0], None, [5], [0,256])
+					# Rescaling to percent
+					sumGoalHistogram = float(goalHistogram0[0] + goalHistogram1[0] + goalHistogram2[0] + goalHistogram3[0] + goalHistogram4[0])
+					goalHistogram0[0] = float(goalHistogram0[0]) / sumGoalHistogram
+					goalHistogram1[0] = float(goalHistogram1[0]) / sumGoalHistogram
+					goalHistogram2[0] = float(goalHistogram2[0]) / sumGoalHistogram
+					goalHistogram3[0] = float(goalHistogram3[0]) / sumGoalHistogram
+					goalHistogram4[0] = float(goalHistogram4[0]) / sumGoalHistogram
+
+					goalParameter = np.array([goalAspectRatio, goalArea, goalRectArea, goalExtent, goalSolidity, goalHistogram0[0], goalHistogram1[0], goalHistogram2[0], goalHistogram3[0], goalHistogram4[0]])
+					goalProperties = np.insert(goalProperties, 0, goalParameter , axis = 0)
+					goalProperties = np.delete(goalProperties, -1, axis=0)
+					goalPrediction = goalMLModel.predict_proba(goalProperties)
+
+					if goalPrediction[0,1] == 1:
+						# Set variable to skip next step							
+						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), goalColor, 2)
+						goalFound = True
+						break
+
+				elif runningMode == 3:
+					if goalNumber == goalIteration:
+						goalAspectRatio = float(goalWidth) / float(goalHeight)
+						goalArea = float(cv2.contourArea(goalContour))
+						goalRectArea = float(goalWidth) * float(goalHeight)
+						goalExtent = float(goalArea) / float(goalRectArea)
+						goalHull = cv2.convexHull(goalContour)
+						goalHullArea = cv2.contourArea(goalHull)
+						if goalHullArea > 0:
+							goalSolidity = float(goalArea) / float(goalHullArea)
+						else:
+							goalSolidity = 0
+						goalRoi = grayscaleImage[goalTopLeftY:goalTopLeftY + goalHeight, goalTopLeftX:goalTopLeftX + goalWidth]
+						goalHistogram0, goalHistogram1, goalHistogram2, goalHistogram3, goalHistogram4 = cv2.calcHist([goalRoi], [0], None, [5], [0,256])
+						sumGoalHistogram = float(goalHistogram0[0] + goalHistogram1[0] + goalHistogram2[0] + goalHistogram3[0] + goalHistogram4[0])
+						goalHistogram0[0] = float(goalHistogram0[0]) / sumGoalHistogram
+						goalHistogram1[0] = float(goalHistogram1[0]) / sumGoalHistogram
+						goalHistogram2[0] = float(goalHistogram2[0]) / sumGoalHistogram
+						goalHistogram3[0] = float(goalHistogram3[0]) / sumGoalHistogram
+						goalHistogram4[0] = float(goalHistogram4[0]) / sumGoalHistogram
+						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), goalColor, 2)
+					else:
+						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), contourColor, 2)
+					goalIteration += 1
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
-		textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, dataNumber)
-		cv2.putText(modRgbImage,textLine,(10,20), font, 0.4,(0,0,255),1,cv2.LINE_AA)
+		
+		if runningMode == 2:
+			textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, ballDataNumber)
+			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
+		elif runningMode == 3:
+			if runningMode == 2:
+			textLine = "Image : {} Goal : {} Dataset : {}".format(imageNumber, goalNumber, goalDataNumber)
+			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 
 		if imageToDisplay == 1:
 			lowerFieldGr[0] = cv2.getTrackbarPos('HMin','Control')
@@ -626,134 +726,289 @@ def main():
 		print 'Save Goal Dataset to CSV ------------------------------- [D]'
 		print 'Load Goal Dataset from CSV, Train and Save ML Model ---- [M]' 
 		'''
+		# Waiting keyboard interrupt
 		k = cv2.waitKey(1)
-
-		if k == ord('x'):
-			break
-		
-		elif k == ord('d'):
-			imageNumber += 1
-		elif k == ord('a'):
-			imageNumber -= 1
-
-		elif k == ord('f'):
-			cv2.destroyAllWindows()			
-			imageToDisplay = 1
-			createTrackbars(imageToDisplay)
-			loadTrackbars(imageToDisplay)
-			print 'Setting Field Parameter'
-
-		elif k == ord('n'): 
-			cv2.destroyAllWindows()
-			imageToDisplay = 2 
-			createTrackbars(imageToDisplay)
-			loadTrackbars(imageToDisplay)
-			print 'Setting Ball Green Parameter'
-
-		elif k == ord('b'): 
-			cv2.destroyAllWindows()
-			imageToDisplay = 3 
-			createTrackbars(imageToDisplay)
-			loadTrackbars(imageToDisplay)
-			print 'Setting Ball White Parameter'
-
-		elif k == ord('g'):
-			cv2.destroyAllWindows()
-			imageToDisplay = 4 
-			createTrackbars(imageToDisplay)
-			loadTrackbars(imageToDisplay)
-			print 'Setting Goal Parameter'
-
-		elif k == ord('s'):
-			saveConfig()
-
-		elif k == ord('l'):
-			loadConfig()
-			loadTrackbars(imageToDisplay)
-
-		elif k == ord('r'):
-			imageToDisplay = 0
-			cv2.destroyAllWindows()
-
-		
-
-		
-
+		# Keyboard shortcut for running mode
 		if runningMode == 0:
-			# print 'masuk sini'
 			if k == ord('x'):
+				imageToDisplay = 0
 				cv2.destroyAllWindows()
+				print 'Exit Program'
 				break
-			elif k == ord('n'):
-				# print 'next'
-				imageNumber += 1
-			elif k == ord('p'):
-				imageNumber -= 1
+			elif k == ord('1'):
+				cv2.destroyAllWindows()			
+				imageToDisplay = 1
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Field Parameter'
+			elif k == ord('2'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 2 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball Green Parameter'
+			elif k == ord('3'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 3 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball White Parameter'
+			elif k == ord('4'):
+				cv2.destroyAllWindows()
+				imageToDisplay = 4 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Goal Parameter'
+			elif k == ord('s'):
+				saveConfig()
+				print 'Save Setting Value'
+			elif k == ord('l'):
+				loadConfig()
+				loadTrackbars(imageToDisplay)
+				print 'Load Setting Value'
+			elif k == ord('0'):
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				print 'Close All Windows'
+		# Keyboard Shortcut for Dataset Testing From Image
 		elif runningMode == 1:
-			# print 'masuk sini'
 			if k == ord('x'):
+				imageToDisplay = 0
 				cv2.destroyAllWindows()
+				print 'Exit Program'
 				break
+			elif k == ord('1'):
+				cv2.destroyAllWindows()			
+				imageToDisplay = 1
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Field Parameter'
+			elif k == ord('2'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 2 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball Green Parameter'
+			elif k == ord('3'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 3 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball White Parameter'
+			elif k == ord('4'):
+				cv2.destroyAllWindows()
+				imageToDisplay = 4 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Goal Parameter'
+			elif k == ord('s'):
+				saveConfig()
+				print 'Save Setting Value'
+			elif k == ord('l'):
+				loadConfig()
+				loadTrackbars(imageToDisplay)
+				print 'Load Setting Value'
+			elif k == ord('0'):
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				print 'Close All Windows'
 			elif k == ord('n'):
-				# print 'next'
 				imageNumber += 1
+				print 'Next Image'
 			elif k == ord('p'):
 				imageNumber -= 1
+				print 'Previous Image'
+		# Keyboard shortcut for ball training mode
 		elif runningMode == 2:
-			# Exit and Save data to CSV
 			if k == ord('x'):
-				np.savetxt('ballDataset.csv', npDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				np.savetxt(ballDatasetFilename, npBallDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+				print 'Exit Program'
 				break
-			# Next Image
+			elif k == ord('1'):
+				cv2.destroyAllWindows()			
+				imageToDisplay = 1
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Field Parameter'
+			elif k == ord('2'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 2 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball Green Parameter'
+			elif k == ord('3'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 3 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball White Parameter'
+			'''
+			elif k == ord('4'):
+				cv2.destroyAllWindows()
+				imageToDisplay = 4 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Goal Parameter'
+			'''
+			elif k == ord('s'):
+				saveConfig()
+				print 'Save Setting Value'
+			elif k == ord('l'):
+				loadConfig()
+				loadTrackbars(imageToDisplay)
+				print 'Load Setting Value'
+			elif k == ord('0'):
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				print 'Close All Windows'
 			elif k == ord('n'):
 				imageNumber += 1
-			# Prev Image
+				print 'Next Image'
 			elif k == ord('p'):
 				imageNumber -= 1
-			# Next Contour
+				print 'Previous Image'
 			elif k == ord('c'):
 				ballNumber += 1
 				if ballNumber >= ballContourLen:
 					ballNumber = 0
 					imageNumber += 1
-			# Prev Contour
+				print 'Next Ball Contour'
 			elif k == ord('z'):
 				ballNumber -= 1
 				if ballNumber < 0:
 					ballNumber = 0
 					imageNumber -= 1
-			# Mark as Ball and insert to array
+				print 'Previous Ball Contour'
 			elif k == ord('b'):
 				isBall = 1
-				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
-				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+				npBallData = np.array([ballDataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+				npBallDataset = np.insert(npBallDataset, ballDataNumber-1, npBallData, axis=0)
 				ballNumber += 1
 				if ballNumber >= ballContourLen:
 					ballNumber = 0
 					imageNumber += 1
-				dataNumber += 1
-			# Mark as not Ball and insert to array
-			elif k == ord('m'):
+				ballDataNumber += 1
+				print 'Mark as Ball'
+			elif k == ord('u'):
 				isBall = 0
-				npData = np.array([dataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
-				npDataset = np.insert(npDataset,dataNumber-1,npData,axis=0)
+				npBallData = np.array([ballDataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
+				npBallDataset = np.insert(npBallDataset, ballDataNumber-1, npBallData, axis=0)
 				ballNumber += 1
 				if ballNumber >= ballContourLen:
 					ballNumber = 0
 					imageNumber += 1
-				dataNumber += 1
-			# Save to CSV
-			elif k == ord('s'):
-				np.savetxt('ballDataset.csv', npDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
-			# Load CSV convert to Np
-			# Train data
+				ballDataNumber += 1
+				print 'Mark as Unknown'
 			elif k == ord('t'):
-				npDataset = np.delete(npDataset, -1, axis=0)
-				inputTraining = npDataset[:,1:12]
-				outputTraining = npDataset[:,-1]
-				mlModel = mlModel.fit(inputTraining, outputTraining)
-				joblib.dump(mlModel, filename)
-			# Save model
+				npBallDataset = np.delete(npBallDataset, -1, axis=0)
+				inputBallTraining = npBallDataset[:,1:12]
+				outputBallTraining = npBallDataset[:,-1]
+				ballMLModel = ballMLModel.fit(inputBallTraining, outputBallTraining)
+				joblib.dump(ballMLModel, ballMLFilename)
+				print 'Train Ball ML Model and Save to SAV'
+			elif k == ord('d'):
+				np.savetxt(ballDatasetFilename, npBallDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
+				print 'Save Ball Dataset to CSV'
+			elif k == ord('m')
+				print 'Load CSV Dataset, Train and Save Model'
+		# Keyboard shortcut for goal training mode
+		elif runningMode == 3:
+			if k == ord('x'):
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				# ini diganri sama goal
+				np.savetxt('ballDataset.csv', npGoalDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Goal")
+				print 'Exit Program'
+				break
+			elif k == ord('1'):
+				cv2.destroyAllWindows()			
+				imageToDisplay = 1
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Field Parameter'
+			'''
+			elif k == ord('2'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 2 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball Green Parameter'
+			elif k == ord('3'): 
+				cv2.destroyAllWindows()
+				imageToDisplay = 3 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Ball White Parameter'
+			'''
+			elif k == ord('4'):
+				cv2.destroyAllWindows()
+				imageToDisplay = 4 
+				createTrackbars(imageToDisplay)
+				loadTrackbars(imageToDisplay)
+				print 'Setting Goal Parameter'
+			elif k == ord('s'):
+				saveConfig()
+				print 'Save Setting Value'
+			elif k == ord('l'):
+				loadConfig()
+				loadTrackbars(imageToDisplay)
+				print 'Load Setting Value'
+			elif k == ord('0'):
+				imageToDisplay = 0
+				cv2.destroyAllWindows()
+				print 'Close All Windows'
+			elif k == ord('n'):
+				imageNumber += 1
+				print 'Next Image'
+			elif k == ord('p'):
+				imageNumber -= 1
+				print 'Previous Image'
+			elif k == ord('c'):
+				goalNumber += 1
+				if goalNumber >= goalContourLen:
+					goalNumber = 0
+					imageNumber += 1
+				print 'Next Goal Contour'
+			elif k == ord('z'):
+				goalNumber -= 1
+				if goalNumber < 0:
+					goalNumber = 0
+					imageNumber -= 1
+				print 'Previous Goal Contour'
+			elif k == ord('g'):
+				isGoal = 1
+				npGoalData = np.array([goalDataNumber, goalAspectRatio, goalArea, goalRectArea, goalExtent, goalSolidity, goalHistogram0[0], goalHistogram1[0], goalHistogram2[0], goalHistogram3[0], goalHistogram4[0], isGoal])
+				npGoalDataset = np.insert(npGoalDataset, goalDataNumber-1, npGoalData, axis=0)
+				goalNumber += 1
+				if goalNumber >= goalContourLen:
+					goalNumber = 0
+					imageNumber += 1
+				goalDataNumber += 1
+				print 'Mark as Goal'
+			elif k == ord('u'):
+				isGoal = 0
+				npGoalData = np.array([goalDataNumber, goalAspectRatio, goalArea, goalRectArea, goalExtent, goalSolidity, goalHistogram0[0], goalHistogram1[0], goalHistogram2[0], goalHistogram3[0], goalHistogram4[0], isGoal])
+				npGoalDataset = np.insert(npGoalDataset, goalDataNumber-1, npGoalData, axis=0)
+				goalNumber += 1
+				if goalNumber >= goalContourLen:
+					goalNumber = 0
+					imageNumber += 1
+				goalDataNumber += 1
+				print 'Mark as Unknown'
+			elif k == ord('t'):
+				npGoalDataset = np.delete(npGoalDataset, -1, axis=0)
+				inputGoalTraining = npGoalDataset[:,1:11]
+				outputGoalTraining = npGoalDataset[:,-1]
+				goalMLModel = goalMLModel.fit(inputGoalTraining, outputGoalTraining)
+				joblib.dump(goalMLModel, goalMLFilename)
+				print 'Train Goal ML Model and Save to SAV'
+			elif k == ord('d'):
+				np.savetxt(goalDatasetFilename, npGoalDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Goal")
+				print 'Save Goal Dataset to CSV'
+			elif k == ord('m')
+				print 'Load CSV Goal Dataset, Train and Save Model'
 
 '''
 def main_lama():
