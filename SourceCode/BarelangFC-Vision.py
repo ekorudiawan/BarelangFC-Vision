@@ -67,18 +67,18 @@ mod1 = False
 mod2 = False
 
 # Global variable for thresholding
-lowerFieldGr = np.zeros(3)
-upperFieldGr = 255 * np.ones(3)
-edFieldGr = np.zeros(2)
-lowerBallGr = np.zeros(3)
-upperBallGr = 255 * np.ones(3)
-edBallGr = np.zeros(2)
-lowerBallWh = np.zeros(3)
-upperBallWh = 255 * np.ones(3)
-edBallWh = np.zeros(2)
-lowerGoalWh = np.zeros(3)
-upperGoalWh = 255 * np.ones(3)
-edGoalWh = np.zeros(2)
+lowerFieldGr = np.zeros(3, dtype=int)
+upperFieldGr = 255 * np.ones(3, dtype=int)
+edFieldGr = np.zeros(2, dtype=int)
+lowerBallGr = np.zeros(3, dtype=int)
+upperBallGr = 255 * np.ones(3, dtype=int)
+edBallGr = np.zeros(2, dtype=int)
+lowerBallWh = np.zeros(3, dtype=int)
+upperBallWh = 255 * np.ones(3, dtype=int)
+edBallWh = np.zeros(2, dtype=int)
+lowerGoalWh = np.zeros(3, dtype=int)
+upperGoalWh = 255 * np.ones(3, dtype=int)
+edGoalWh = np.zeros(2, dtype=int)
 
 ##socket
 import socket
@@ -139,6 +139,7 @@ def createTrackbars(mode):
 	cv2.createTrackbar('VMax','Control',255,255,nothing)
 	cv2.createTrackbar('Erode','Control',0,10,nothing)
 	cv2.createTrackbar('Dilate','Control',0,100,nothing)
+	# return none
 
 def loadTrackbars(mode):
 	# Show Field
@@ -181,16 +182,46 @@ def loadTrackbars(mode):
 		cv2.setTrackbarPos('VMax', 'Control', upperGoalWh[2])
 		cv2.setTrackbarPos('Erode', 'Control', edGoalWh[0])
 		cv2.setTrackbarPos('Dilate', 'Control', edGoalWh[1])
+	# return none
 
 def saveConfig():
-	npSettingValue = np.array([lowerFieldGr, upperFieldGr, edFieldGr, lowerBallGr, upperBallGr, edBallGr, lowerBallWh, upperBallWh, edBallWh, lowerGoalWh, upperGoalWh, edGoalWh])
-	npSettingValue = np.reshape(npSettingValue, 32)
-	headerLabel = '''F HMin, F SMin, F SMin, F HMax, F SMax, F SMax, F Erode, F Dilate, 
-					 B Gr HMin, B Gr SMin, B Gr SMin, B Gr HMax, B Gr SMax, B Gr SMax, B Gr Erode, B Gr Dilate,
-					 B Wh HMin, B Wh SMin, B Wh SMin, B Wh HMax, B Wh SMax, B Wh SMax, B Wh Erode, B Wh Dilate,
-					 G HMin, G SMin, G SMin, G HMax, G SMax, G SMax, G Erode, G Dilate'''
+	npSettingValue = np.zeros(32, dtype=int)
+	npSettingValue[0] = lowerFieldGr[0]
+	npSettingValue[1] = lowerFieldGr[1] 
+	npSettingValue[2] = lowerFieldGr[2] 
+	npSettingValue[3] = upperFieldGr[0] 
+	npSettingValue[4] = upperFieldGr[1] 
+	npSettingValue[5] = upperFieldGr[2] 
+	npSettingValue[6] = edFieldGr[0] 
+	npSettingValue[7] = edFieldGr[1]
+	npSettingValue[8] = lowerBallGr[0] 
+	npSettingValue[9] = lowerBallGr[1] 
+	npSettingValue[10] = lowerBallGr[2] 
+	npSettingValue[11] = upperBallGr[0] 
+	npSettingValue[12] = upperBallGr[1] 
+	npSettingValue[13] = upperBallGr[2] 
+	npSettingValue[14] = edBallGr[0]
+	npSettingValue[15] = edBallGr[1] 
+	npSettingValue[16] = lowerBallWh[0] 
+	npSettingValue[17] = lowerBallWh[1] 
+	npSettingValue[18] = lowerBallWh[2] 
+	npSettingValue[19] = upperBallWh[0] 
+	npSettingValue[20] = upperBallWh[1] 
+	npSettingValue[21] = upperBallWh[2] 
+	npSettingValue[22] = edBallWh[0] 
+	npSettingValue[23] = edBallWh[1] 
+	npSettingValue[24] = lowerGoalWh[0] 
+	npSettingValue[25] = lowerGoalWh[1] 
+	npSettingValue[26] = lowerGoalWh[2] 
+	npSettingValue[27] = upperGoalWh[0] 
+	npSettingValue[28] = upperGoalWh[1] 
+	npSettingValue[29] = upperGoalWh[2] 
+	npSettingValue[30] = edGoalWh[0] 
+	npSettingValue[31] = edGoalWh[1] 
+	npSettingValue = np.reshape(npSettingValue, (1, 32))
+	headerLabel = '''F HMin, F SMin, F SMin, F HMax, F SMax, F SMax, F Erode, F Dilate, B Gr HMin, B Gr SMin, B Gr SMin, B Gr HMax, B Gr SMax, B Gr SMax, B Gr Erode, B Gr Dilate, B Wh HMin, B Wh SMin, B Wh SMin, B Wh HMax, B Wh SMax, B Wh SMax, B Wh Erode, B Wh Dilate, G HMin, G SMin, G SMin, G HMax, G SMax, G SMax, G Erode, G Dilate'''
 
-	np.savetxt('settingParameter.csv', npSettingValue, fmt = '%d', delimiter = ',', header = headerLabel)
+	np.savetxt(settingValueFilename, npSettingValue, fmt = '%d', delimiter = ',', header = headerLabel)
 				
 	# f = open("storageThreshold.txt","w")
 	# data = '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d'%(hfmax,hfmin,sfmax,sfmin,vfmax,vfmin,efsize,dfsize,hgmax,hgmin,sgmax,sgmin,vgmax,vgmin,egsize,dgsize,hbmax,hbmin,sbmax,sbmin,vbmax,vbmin,ebsize,dbsize,hnmax,hnmin,snmax,snmin,vnmax,vnmin,ensize,dnsize,fblur)
@@ -199,7 +230,47 @@ def saveConfig():
 	print 'Setting Parameter Saved'
 
 def loadConfig():
-	#  data = np.genfromtxt(path_to_csv, dtype=float, delimiter=',', names=True) 
+	# print np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', names=True)
+	# csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', names=False) 
+	csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', skip_header=True)
+	print csvSettingValue
+	# print csvSettingValue
+	lowerFieldGr[0] = csvSettingValue[0]
+	lowerFieldGr[1] = csvSettingValue[1]
+	lowerFieldGr[2] = csvSettingValue[2]
+	upperFieldGr[0] = csvSettingValue[3]
+	upperFieldGr[1] = csvSettingValue[4]
+	upperFieldGr[2] = csvSettingValue[5]
+	edFieldGr[0] = csvSettingValue[6]
+	edFieldGr[1] = csvSettingValue[7]
+	lowerBallGr[0] = csvSettingValue[8]
+	lowerBallGr[1] = csvSettingValue[9]
+	lowerBallGr[2] = csvSettingValue[10]
+	upperBallGr[0] = csvSettingValue[11]
+	upperBallGr[1] = csvSettingValue[12]
+	upperBallGr[2] = csvSettingValue[13]
+	edBallGr[0] = csvSettingValue[14]
+	edBallGr[1] = csvSettingValue[15]
+	lowerBallWh[0] = csvSettingValue[16]
+	lowerBallWh[1] = csvSettingValue[17]
+	lowerBallWh[2] = csvSettingValue[18]
+	upperBallWh[0] = csvSettingValue[19]
+	upperBallWh[1] = csvSettingValue[20]
+	upperBallWh[2] = csvSettingValue[21]
+	edBallWh[0] = csvSettingValue[22]
+	edBallWh[1] = csvSettingValue[23]
+	lowerGoalWh[0] = csvSettingValue[24]
+	lowerGoalWh[1] = csvSettingValue[25]
+	lowerGoalWh[2] = csvSettingValue[26]
+	upperGoalWh[0] = csvSettingValue[27]
+	upperGoalWh[1] = csvSettingValue[28]
+	upperGoalWh[2] = csvSettingValue[29]
+	edGoalWh[0] = csvSettingValue[30]
+	edGoalWh[1] = csvSettingValue[31]
+
+	print 'Setting Parameter Loaded'
+
+	'''
 	global hfmax, hfmin, sfmax, sfmin, vfmax, vfmin, efsize, dfsize
 	global hgmax, hgmin, sgmax, sgmin, vgmax, vgmin, egsize, dgsize
 	global hbmax, hbmin, sbmax, sbmin, vbmax, vbmin, ebsize, dbsize
@@ -246,6 +317,7 @@ def loadConfig():
 		f.close
 		#`print '%d'%(sfmin)
 	print 'loaded'
+	'''
 
 def nothing(x):
 	pass
@@ -370,9 +442,11 @@ def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, 
 def main():
 	# Running Mode
 	# 0 : Running Program
-	# 1 : Training Data
-	# 2 : Generate Image
-	runningMode = 1
+	# 1 : Test Dataset
+	# 2 : Train Ball
+	# 3 : Train Goal
+	# 4 : Generate Image
+	runningMode = 2
 
 	# Machine learning model will be saved to this file
 	# filename = 'BarelangFC-Model.sav'
@@ -397,6 +471,8 @@ def main():
 	goalContourLen = 0
 
 	ballMode = 0
+	
+	# loadConfig()
 
 	if runningMode == 0:
 		print 'Running From Live Cam'
@@ -417,13 +493,12 @@ def main():
 		print 'Generate Image Dataset'
 
 	# Image yang akan ditampilkan
-	imageToDisplay = 0
+	imageToDisplay = 1
 	kernel = np.ones((5,5),np.uint8)
 	
 	while(True):
 		# Ini nanti diganti dengan load dari file
 		# Create trackbar		
-
 		if runningMode == 0 or runningMode == 4:
 			# ini nanti diganti dari live cam
 			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
@@ -476,7 +551,6 @@ def main():
 		ballContourLen = 0
 		ballIteration = 0
 		for ballDetectionMode in range(0, 2):
-			# print 'aa'
 			if ballDetectionMode == 0:
 				_, listBallContours, _ = cv2.findContours(ballGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 			else:
@@ -641,12 +715,11 @@ def main():
 					goalIteration += 1
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
-		
+		# print 'masuk'
 		if runningMode == 2:
 			textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, ballDataNumber)
 			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 		elif runningMode == 3:
-			if runningMode == 2:
 			textLine = "Image : {} Goal : {} Dataset : {}".format(imageNumber, goalNumber, goalDataNumber)
 			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 
@@ -772,6 +845,7 @@ def main():
 				print 'Close All Windows'
 		# Keyboard Shortcut for Dataset Testing From Image
 		elif runningMode == 1:
+			# print 'cuk'
 			if k == ord('x'):
 				imageToDisplay = 0
 				cv2.destroyAllWindows()
@@ -844,14 +918,6 @@ def main():
 				createTrackbars(imageToDisplay)
 				loadTrackbars(imageToDisplay)
 				print 'Setting Ball White Parameter'
-			'''
-			elif k == ord('4'):
-				cv2.destroyAllWindows()
-				imageToDisplay = 4 
-				createTrackbars(imageToDisplay)
-				loadTrackbars(imageToDisplay)
-				print 'Setting Goal Parameter'
-			'''
 			elif k == ord('s'):
 				saveConfig()
 				print 'Save Setting Value'
@@ -911,7 +977,7 @@ def main():
 			elif k == ord('d'):
 				np.savetxt(ballDatasetFilename, npBallDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Mode, Ball")
 				print 'Save Ball Dataset to CSV'
-			elif k == ord('m')
+			elif k == ord('m'):
 				print 'Load CSV Dataset, Train and Save Model'
 		# Keyboard shortcut for goal training mode
 		elif runningMode == 3:
@@ -928,20 +994,6 @@ def main():
 				createTrackbars(imageToDisplay)
 				loadTrackbars(imageToDisplay)
 				print 'Setting Field Parameter'
-			'''
-			elif k == ord('2'): 
-				cv2.destroyAllWindows()
-				imageToDisplay = 2 
-				createTrackbars(imageToDisplay)
-				loadTrackbars(imageToDisplay)
-				print 'Setting Ball Green Parameter'
-			elif k == ord('3'): 
-				cv2.destroyAllWindows()
-				imageToDisplay = 3 
-				createTrackbars(imageToDisplay)
-				loadTrackbars(imageToDisplay)
-				print 'Setting Ball White Parameter'
-			'''
 			elif k == ord('4'):
 				cv2.destroyAllWindows()
 				imageToDisplay = 4 
@@ -1007,7 +1059,7 @@ def main():
 			elif k == ord('d'):
 				np.savetxt(goalDatasetFilename, npGoalDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Goal")
 				print 'Save Goal Dataset to CSV'
-			elif k == ord('m')
+			elif k == ord('m'):
 				print 'Load CSV Goal Dataset, Train and Save Model'
 
 '''
