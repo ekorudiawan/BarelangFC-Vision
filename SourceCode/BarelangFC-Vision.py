@@ -11,6 +11,8 @@ import os
 import cv2
 import numpy as np
 import datetime
+import socket
+import sys
 from scipy.spatial import distance as dist
 import time
 import math
@@ -20,51 +22,12 @@ from sklearn import tree
 from sklearn.externals import joblib
 
 # Default filename to save all data
-imageDatasetPath = 'D:/RoboCupDataset/normal/gambar_normal_'
+imageDatasetPath = 'D:/RoboCupDataset/dataset_lighting/my_photo-' #'D:/RoboCupDataset/normal/gambar_normal_'
 settingValueFilename = 'BarelangFC-SettingValue.csv'
 ballDatasetFilename = 'BarelangFC-BallDataset.csv'
 ballMLFilename = 'BarelangFC-BallMLModel.sav'
 goalDatasetFilename = 'BarelangFC-GoalDataset.csv'
 goalMLFilename = 'BarelangFC-GoalMLModel.sav'
-
-# Global variable
-dummyImage = np.zeros((120,750,3), np.uint8)
-xxxImage = np.zeros((640,480,3), np.uint8)
-
-# Initialize ball parameter value
-ball_centre_x = -1
-ball_centre_y = -1
-ball_width = 0
-ball_height = 0
-ball_area = 0
-ball_rect_area = 0
-ball_area_ratio = 0
-ball_wh_ratio = 0
-percent_white = 0
-
-# Initialize goal parameter value
-goal_centre_x = -1
-goal_centre_y = -1
-goal_width = 0
-goal_height = 0
-goal_area = 0
-goal_rect_area = 0
-goal_area_ratio = 0
-goal_wh_ratio = 0
-
-# Configuration
-im_width = 640
-im_height = 480
-im_area = im_width * im_height
-imageNumber = 1
-debug_mode = 1
-debug_goal = 0
-debug_ballmode1 = 0
-debug_ballmode2 = 0
-display_image = 0
-stream = True
-mod1 = False
-mod2 = False
 
 # Global variable for thresholding
 lowerFieldGr = np.zeros(3, dtype=int)
@@ -80,16 +43,12 @@ lowerGoalWh = np.zeros(3, dtype=int)
 upperGoalWh = 255 * np.ones(3, dtype=int)
 edGoalWh = np.zeros(2, dtype=int)
 
-##socket
-import socket
-import sys
+# Global variable detection result
+detectedBall = np.zeros(5, dtype=int)
+detectedGoal = np.zeros(7, dtype=int)
+
 host = 'localhost'
 port = 2000
-try:
-	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-except socket.error:
-	print 'Failed to create socket'
-	sys.exit()
 
 def showHelp():
 	print '----------BarelangFC-Vision---------------------------------'
@@ -218,7 +177,6 @@ def saveConfig():
 	print 'Setting Parameter Saved'
 
 def loadConfig():
-	# print np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', names=True)
 	csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', skip_header=True)
 	print csvSettingValue
 	lowerFieldGr[0] = csvSettingValue[0]
@@ -258,10 +216,10 @@ def loadConfig():
 def nothing(x):
 	pass
 
-def midpoint(ptA, ptB):
+def midPoint(ptA, ptB):
 	return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
-def order_points(pts):
+def orderPoints(pts):
 	# sort the points based on their x-coordinates
 	xSorted = pts[np.argsort(pts[:, 0]), :]
 	leftMost = xSorted[:2, :]
@@ -375,13 +333,12 @@ def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, 
 		plt.show()
 	return npPoint
 
+# Gamma Correction
+# Ref : https://www.pyimagesearch.com/2015/10/05/opencv-gamma-correction/
 def gammaCorrection(image, gamma=1.0):
-	# build a lookup table mapping the pixel values [0, 255] to
-	# their adjusted gamma values
 	invGamma = 1.0 / gamma
 	table = np.array([((i / 255.0) ** invGamma) * 255
 		for i in np.arange(0, 256)]).astype("uint8")
-	# apply gamma correction using the lookup table
 	return cv2.LUT(image, table)
 
 def main():
@@ -394,7 +351,6 @@ def main():
 	runningMode = 1
 
 	# Machine learning model will be saved to this file
-	# filename = 'BarelangFC-Model.sav'
 	# Declare the decission tree classifier 
 	ballMLModel = tree.DecisionTreeClassifier()
 	goalMLModel = tree.DecisionTreeClassifier()
@@ -407,7 +363,7 @@ def main():
 	ballProperties = np.zeros((1,11))
 	goalProperties = np.zeros((1,10))
 
-	imageNumber = 171 #67
+	imageNumber = 5 # 171 #67
 	ballDataNumber = 1
 	goalDataNumber = 1
 	ballNumber = 0
@@ -419,7 +375,6 @@ def main():
 	
 	loadConfig()
 	
-
 	if runningMode == 0:
 		print 'Running From Live Cam'
 		# Program run from live camera
@@ -441,6 +396,13 @@ def main():
 	# Image yang akan ditampilkan
 	imageToDisplay = 0
 	kernel = np.ones((5,5),np.uint8)
+
+	# Connect to localhost
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	except socket.error:
+		print 'Failed to create socket'
+		sys.exit()
 	
 	while(True):
 		# Ini nanti diganti dengan load dari file
@@ -450,12 +412,13 @@ def main():
 			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		if runningMode == 1 or runningMode == 2 or runningMode == 3:
 			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
+			# rawImage = "D:/RoboCupDataset/dataset_lighting/my_photo-" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
 		rgbImage = cv2.imread(rawImage)
 
-		rgbGamma = gammaCorrection(rgbImage, gamma=10)
-		# ini gak bagus harusnya deklarasi diatas
+		# rgbGamma = gammaCorrection(rgbImage, gamma=2.5)
 
+		# ini gak bagus harusnya deklarasi diatas
 		fieldMask = np.zeros(rgbImage.shape[:2], np.uint8)
 		notFieldMask = 255 * np.ones(rgbImage.shape[:2], np.uint8)
 		
@@ -467,8 +430,6 @@ def main():
 		hsvImage = cv2.cvtColor(rgbImage, cv2.COLOR_BGR2HSV)
 
 		# Field Green Color Filtering
-		# print lowerFieldGr
-		# print upperFieldGr
 		fieldGrBinary = cv2.inRange(hsvBlurImage, lowerFieldGr, upperFieldGr)
 		fieldGrBinaryErode = cv2.erode(fieldGrBinary, kernel, iterations = edFieldGr[0])
  		fieldGrFinal = cv2.dilate(fieldGrBinaryErode, kernel, iterations = edFieldGr[1])
@@ -502,10 +463,14 @@ def main():
 		ballContourLen[2] = 0
 		ballIteration = 0
 
-		# Array untuk menampung jumlah contour, idx 0 isinya jumlah contur mode 1 idx 1 jumlah mode 2, 
-		# ballContourLen = np.zeros(3, dtye=int)
+		# Initialize to default
+		detectedBall[0] = -888
+		detectedBall[1] = -888
+		detectedBall[2] = -888
+		detectedBall[3] = -888
+		detectedBall[4] = -888
+
 		for ballDetectionMode in range(0, 2):
-			# print ballDetectionMode
 			if ballDetectionMode == 0:
 				_, listBallContours, _ = cv2.findContours(ballGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 			else:
@@ -513,10 +478,7 @@ def main():
 
 			if len(listBallContours) > 0:
 				listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
-				# if ballDetectionMode == 0:
 				ballContourLen[ballDetectionMode] = len(listSortedBallContours)
-				# elif ballDetectionMode == 1:
-					# ballContourLen[1] = len(listSortedBallContours)
 				ballContourLen[2] = ballContourLen[0] + ballContourLen[1]
 				for ballContour in listSortedBallContours:
 					ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
@@ -556,7 +518,14 @@ def main():
 						# Yes, it is a ball
 						if ballPrediction[0,1] == 1:
 							# Set variable to skip next step							
-							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+							cv2.rectangle(modRgbImage, (ballTopLeftX, ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+							detectedBall[0] = ballTopLeftX + ballWidth / 2 # Centre X
+							detectedBall[1] = ballTopLeftY + ballHeight / 2 # Centre Y
+							detectedBall[2] = ballWidth
+							detectedBall[3] = ballHeight
+							ballDistance = 0
+							detectedBall[4] = ballDistance
+
 							ballFound = True
 							break	
 					elif runningMode == 2:
@@ -607,12 +576,18 @@ def main():
 		goalWhFinal = cv2.bitwise_and(goalWhBinaryDilate,notFieldMask)
 
 		# Goal detection variable
-		# Tengah : 0 Kanan : 1 Kiri : -1
-		# Set a magic number
-		goalPosition = -888
 		goalContourLen = 0
 		goalIteration = 0
-		goalFound = False
+
+		# Initialize to default
+		detectedGoal[0] = -888
+		detectedGoal[1] = -888
+		detectedGoal[2] = -888
+		detectedGoal[3] = -888
+		detectedGoal[4] = -888
+		detectedGoal[5] = -888
+		detectedGoal[6] = -888
+
 		# Field Contour Detection
 		_, listGoalContours, _ = cv2.findContours(goalWhFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listGoalContours) > 0:
@@ -648,25 +623,23 @@ def main():
 					goalProperties = np.delete(goalProperties, -1, axis=0)
 					goalPrediction = goalMLModel.predict_proba(goalProperties)
 
-					
-
 					if goalPrediction[0,1] == 1:
-						# Set variable to skip next step							
 						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), goalColor, 2)
-						# c = max(goalContour, key=cv2.contourArea)
-						# print goalContour
-						# determine the most extreme points along the contour
-						extLeft = tuple(goalContour[goalContour[:, :, 0].argmin()] [0] )
-						# print 'contour'
-						# print goalContour
-						# print goalContour[:,:,0].argmax()
-						extRight = tuple(goalContour[goalContour[:, :, 0].argmax()] [0])
-						extTop = tuple(goalContour[goalContour[:, :, 1].argmin()][0])
-						extBot = tuple(goalContour[goalContour[:, :, 1].argmax()][0])
-						cv2.circle(modRgbImage, extLeft, 8, (0, 0, 255), -1)
-						cv2.circle(modRgbImage, extRight, 8, (0, 255, 0), -1)
-						cv2.circle(modRgbImage, extTop, 8, (255, 0, 0), -1)
-						cv2.circle(modRgbImage, extBot, 8, (255, 255, 0), -1)
+						# Ini nanti dijadikan array aja
+						poleLeftBottom = tuple(goalContour[goalContour[:, :, 0].argmin()] [0] )
+						poleRightUp = tuple(goalContour[goalContour[:, :, 0].argmax()] [0])
+						poleLeftUp = tuple(goalContour[goalContour[:, :, 1].argmin()][0])
+						poleRightBottom = tuple(goalContour[goalContour[:, :, 1].argmax()][0])
+
+						showPole = True
+						if showPole == True:
+							cv2.circle(modRgbImage, poleLeftBottom, 8, (0, 0, 255), -1)
+							cv2.circle(modRgbImage, poleRightUp, 8, (0, 255, 0), -1)
+							cv2.circle(modRgbImage, poleLeftUp, 8, (255, 0, 0), -1)
+							cv2.circle(modRgbImage, poleRightBottom, 8, (255, 255, 0), -1)
+
+						poleLeftHeight = np.linalg.norm(np.array(poleLeftUp)-np.array(poleLeftBottom))
+						poleRightHeight = np.linalg.norm(np.array(poleRightUp)-np.array(poleRightBottom))
 
 						# Pecah jadi 2 bagian
 						goalRoiLeft = goalRoiBinary[0:goalHeight, 0:goalWidth/2]
@@ -674,33 +647,43 @@ def main():
 						
 						# Hitung titik pusat gawang kiri
 						poleMomentPosition = np.zeros((2,2), dtype=int)
-						
 						for goalPolePosition in range(0, 2):
-							# kiri
 							if goalPolePosition == 0:
 								_, listGoalPoleContours, _ = cv2.findContours(goalRoiLeft.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 							elif goalPolePosition == 1:
 								_, listGoalPoleContours, _ = cv2.findContours(goalRoiRight.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-						
 							goalPoleContour = sorted(listGoalPoleContours, key=cv2.contourArea, reverse=True)[:1]
 							goalPoleMoment = cv2.moments(goalPoleContour[0])
 							poleMomentPosition[goalPolePosition, 0] = int(goalPoleMoment["m10"] / goalPoleMoment["m00"]) #x
 							poleMomentPosition[goalPolePosition, 1] = int(goalPoleMoment["m01"] / goalPoleMoment["m00"]) #y
 
 						# Gambar titik moment
-						cv2.circle(modRgbImage, (goalTopLeftX + poleMomentPosition[0,0], goalTopLeftY + poleMomentPosition[0,1]), 7, (50, 100, 255), -1)
-						cv2.circle(modRgbImage, (goalTopLeftX + goalWidth /2 + poleMomentPosition[1,0], goalTopLeftY + poleMomentPosition[1,1]), 7, (50, 100, 255), -1)
+						showMoment = True
+						if showMoment == True:
+							cv2.circle(modRgbImage, (goalTopLeftX + poleMomentPosition[0,0], goalTopLeftY + poleMomentPosition[0,1]), 7, (50, 100, 255), -1)
+							cv2.circle(modRgbImage, (goalTopLeftX + goalWidth/2 + poleMomentPosition[1,0], goalTopLeftY + poleMomentPosition[1,1]), 7, (50, 100, 255), -1)
 
 						# Cari selisih titik moment y dari tiang 1 dan tiang 2
 						diffMomentPosition = poleMomentPosition[0,1] - poleMomentPosition[1,1]
+						poleClass = 0
 						# print diffMomentPosition
 						if diffMomentPosition < -80:
-							print 'tiang kanan'
+							poleClass = 1
 						elif diffMomentPosition > 80:
-							print 'TIANG KIRI'
+							poleClass = -1
 						else:
-							print 'tiang tengah'
-						goalFound = True
+							poleClass = 0
+
+						detectedGoal[0] = goalTopLeftX + goalWidth / 2 # X
+						detectedGoal[1] = goalTopLeftY + goalHeight / 2
+						detectedGoal[2] = poleLeftHeight
+						detectedGoal[3] = poleRightHeight
+						detectedGoal[4] = poleClass
+						poleLeftDistance = 0
+						poleRightDistance = 0
+						detectedGoal[5] = poleLeftDistance
+						detectedGoal[6] = poleRightDistance
+						# Udah ketemu ya break aja
 						break
 
 				elif runningMode == 3:
@@ -727,6 +710,15 @@ def main():
 					else:
 						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), contourColor, 2)
 					goalIteration += 1
+
+		# Send detection result to localhost
+		try:
+			#s.flush()
+			visionMessage = '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d'%(detectedBall[0], detectedBall[1], detectedBall[2], detectedBall[3], detectedBall[4], detectedGoal[0], detectedGoal[1], detectedGoal[2], detectedGoal[3], detectedGoal[4], detectedGoal[5], detectedGoal[6])
+			s.sendto(visionMessage, (host, port))
+		except socket.error:
+			#print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+			sys.exit()
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		# print 'masuk'
@@ -787,8 +779,6 @@ def main():
 			cv2.imshow("Goal Binary Image", goalWhFinal)
 		else:
 			cv2.imshow("Barelang Vision", modRgbImage)
-			cv2.imshow("Barelang Visioasn", goalRoiLeft)
-			cv2.imshow("Barelang Visasdioasn", goalRoiRight)
 		
 		'''
 		print '----------BarelangFC-Vision---------------------------------'
@@ -867,7 +857,7 @@ def main():
 				print 'Close All Windows'
 		# Keyboard Shortcut for Dataset Testing From Image
 		elif runningMode == 1:
-			# print 'cuk'
+			# print 'asdasd'
 			if k == ord('x'):
 				imageToDisplay = 0
 				cv2.destroyAllWindows()
@@ -910,10 +900,10 @@ def main():
 				print 'Close All Windows'
 			elif k == ord('n'):
 				imageNumber += 1
-				# print 'Next Image'
+				print 'Next Image'
 			elif k == ord('p'):
 				imageNumber -= 1
-				# print 'Previous Image'
+				print 'Previous Image'
 		# Keyboard shortcut for ball training mode
 		elif runningMode == 2:
 			if k == ord('x'):
@@ -978,7 +968,7 @@ def main():
 					ballNumber = 0
 					imageNumber += 1
 				ballDataNumber += 1
-				# print 'Mark as Ball'
+				print 'Mark as Ball'
 			elif k == ord('u'):
 				isBall = 0
 				npBallData = np.array([ballDataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
@@ -988,7 +978,7 @@ def main():
 					ballNumber = 0
 					imageNumber += 1
 				ballDataNumber += 1
-				# print 'Mark as Unknown'
+				print 'Mark as Unknown'
 			elif k == ord('t'):
 				npBallDataset = np.delete(npBallDataset, -1, axis=0)
 				inputBallTraining = npBallDataset[:,1:12]
@@ -1006,8 +996,7 @@ def main():
 			if k == ord('x'):
 				imageToDisplay = 0
 				cv2.destroyAllWindows()
-				# ini diganri sama goal
-				np.savetxt('ballDataset.csv', npGoalDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Goal")
+				np.savetxt(goalDatasetFilename, npGoalDataset, fmt='%.5f', delimiter=',', header="Samples,  Aspect Ratio,  Area,  Rect Area, Extent,  Solidity,  H0,  H1, H2, H3, H4, Goal")
 				print 'Exit Program'
 				break
 			elif k == ord('1'):
@@ -1060,7 +1049,7 @@ def main():
 					goalNumber = 0
 					imageNumber += 1
 				goalDataNumber += 1
-				# print 'Mark as Goal'
+				print 'Mark as Goal'
 			elif k == ord('u'):
 				isGoal = 0
 				npGoalData = np.array([goalDataNumber, goalAspectRatio, goalArea, goalRectArea, goalExtent, goalSolidity, goalHistogram0[0], goalHistogram1[0], goalHistogram2[0], goalHistogram3[0], goalHistogram4[0], isGoal])
@@ -1070,7 +1059,7 @@ def main():
 					goalNumber = 0
 					imageNumber += 1
 				goalDataNumber += 1
-				# print 'Mark as Unknown'
+				print 'Mark as Unknown'
 			elif k == ord('t'):
 				npGoalDataset = np.delete(npGoalDataset, -1, axis=0)
 				inputGoalTraining = npGoalDataset[:,1:11]
