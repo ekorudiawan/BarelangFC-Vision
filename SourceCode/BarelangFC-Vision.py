@@ -92,7 +92,6 @@ except socket.error:
 	sys.exit()
 
 def showHelp():
-	print ''
 	print '----------BarelangFC-Vision---------------------------------'
 	print '### All Running Mode ### -----------------------------------'	
 	print 'Parse Field -------------------------------------------- [1]'	
@@ -122,14 +121,11 @@ def showHelp():
 	print 'Train Goal Dataset and Save ML Model ------------------- [T]'
 	print 'Save Goal Dataset to CSV ------------------------------- [D]'
 	print 'Load Goal Dataset from CSV, Train and Save ML Model ---- [M]' 
-	print ''
 
 def createTrackbars(mode):
 	cv2.namedWindow('Control')
 	# Special for setting blur image
 	# Only available for field setting 
-	if mode == 1:
-		cv2.createTrackbar('Field Blur','Control',0,10,nothing)
 	# All setting parameter
 	cv2.createTrackbar('HMin','Control',0,255,nothing)
 	cv2.createTrackbar('SMin','Control',0,255,nothing)
@@ -139,7 +135,6 @@ def createTrackbars(mode):
 	cv2.createTrackbar('VMax','Control',255,255,nothing)
 	cv2.createTrackbar('Erode','Control',0,10,nothing)
 	cv2.createTrackbar('Dilate','Control',0,100,nothing)
-	# return none
 
 def loadTrackbars(mode):
 	# Show Field
@@ -182,7 +177,6 @@ def loadTrackbars(mode):
 		cv2.setTrackbarPos('VMax', 'Control', upperGoalWh[2])
 		cv2.setTrackbarPos('Erode', 'Control', edGoalWh[0])
 		cv2.setTrackbarPos('Dilate', 'Control', edGoalWh[1])
-	# return none
 
 def saveConfig():
 	npSettingValue = np.zeros(32, dtype=int)
@@ -220,21 +214,13 @@ def saveConfig():
 	npSettingValue[31] = edGoalWh[1] 
 	npSettingValue = np.reshape(npSettingValue, (1, 32))
 	headerLabel = '''F HMin, F SMin, F SMin, F HMax, F SMax, F SMax, F Erode, F Dilate, B Gr HMin, B Gr SMin, B Gr SMin, B Gr HMax, B Gr SMax, B Gr SMax, B Gr Erode, B Gr Dilate, B Wh HMin, B Wh SMin, B Wh SMin, B Wh HMax, B Wh SMax, B Wh SMax, B Wh Erode, B Wh Dilate, G HMin, G SMin, G SMin, G HMax, G SMax, G SMax, G Erode, G Dilate'''
-
 	np.savetxt(settingValueFilename, npSettingValue, fmt = '%d', delimiter = ',', header = headerLabel)
-				
-	# f = open("storageThreshold.txt","w")
-	# data = '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d'%(hfmax,hfmin,sfmax,sfmin,vfmax,vfmin,efsize,dfsize,hgmax,hgmin,sgmax,sgmin,vgmax,vgmin,egsize,dgsize,hbmax,hbmin,sbmax,sbmin,vbmax,vbmin,ebsize,dbsize,hnmax,hnmin,snmax,snmin,vnmax,vnmin,ensize,dnsize,fblur)
-	# f.write(data)
-	# f.close()
 	print 'Setting Parameter Saved'
 
 def loadConfig():
 	# print np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', names=True)
-	# csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', names=False) 
 	csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', skip_header=True)
 	print csvSettingValue
-	# print csvSettingValue
 	lowerFieldGr[0] = csvSettingValue[0]
 	lowerFieldGr[1] = csvSettingValue[1]
 	lowerFieldGr[2] = csvSettingValue[2]
@@ -267,57 +253,7 @@ def loadConfig():
 	upperGoalWh[2] = csvSettingValue[29]
 	edGoalWh[0] = csvSettingValue[30]
 	edGoalWh[1] = csvSettingValue[31]
-
 	print 'Setting Parameter Loaded'
-
-	'''
-	global hfmax, hfmin, sfmax, sfmin, vfmax, vfmin, efsize, dfsize
-	global hgmax, hgmin, sgmax, sgmin, vgmax, vgmin, egsize, dgsize
-	global hbmax, hbmin, sbmax, sbmin, vbmax, vbmin, ebsize, dbsize
-	global hnmax, hnmin, snmax, snmin, vnmax, vnmin, ensize, dnsize
-	global fblur
-
-	f = open("storageThreshold.txt","r")
-	for line in f.readlines():
-		#print line
-		arr_read = line.split(',')
-		hfmax = int(arr_read[0])
-		hfmin = int(arr_read[1])
-		sfmax = int(arr_read[2])
-		sfmin = int(arr_read[3])
-		vfmax = int(arr_read[4])
-		vfmin = int(arr_read[5])
-		efsize = int(arr_read[6])
-		dfsize = int(arr_read[7])
-		hgmax = int(arr_read[8])
-		hgmin = int(arr_read[9])
-		sgmax = int(arr_read[10])
-		sgmin = int(arr_read[11])
-		vgmax = int(arr_read[12])
-		vgmin = int(arr_read[13])
-		egsize = int(arr_read[14])
-		dgsize = int(arr_read[15])
-		hbmax = int(arr_read[16])
-		hbmin = int(arr_read[17])
-		sbmax = int(arr_read[18])
-		sbmin = int(arr_read[19])
-		vbmax = int(arr_read[20])
-		vbmin = int(arr_read[21])
-		ebsize = int(arr_read[22])
-		dbsize = int(arr_read[23])
-		hnmax = int(arr_read[24])
-		hnmin = int(arr_read[25])
-		snmax = int(arr_read[26])
-		snmin = int(arr_read[27])
-		vnmax = int(arr_read[28])
-		vnmin = int(arr_read[29])
-		ensize = int(arr_read[30])
-		dnsize = int(arr_read[31])
-		fblur = int(arr_read[32])
-		f.close
-		#`print '%d'%(sfmin)
-	print 'loaded'
-	'''
 
 def nothing(x):
 	pass
@@ -439,6 +375,15 @@ def fieldContourExtraction(inputImage, inputBinaryImage, angleStep, lengthStep, 
 		plt.show()
 	return npPoint
 
+def gammaCorrection(image, gamma=1.0):
+	# build a lookup table mapping the pixel values [0, 255] to
+	# their adjusted gamma values
+	invGamma = 1.0 / gamma
+	table = np.array([((i / 255.0) ** invGamma) * 255
+		for i in np.arange(0, 256)]).astype("uint8")
+	# apply gamma correction using the lookup table
+	return cv2.LUT(image, table)
+
 def main():
 	# Running Mode
 	# 0 : Running Program
@@ -446,7 +391,7 @@ def main():
 	# 2 : Train Ball
 	# 3 : Train Goal
 	# 4 : Generate Image
-	runningMode = 2
+	runningMode = 1
 
 	# Machine learning model will be saved to this file
 	# filename = 'BarelangFC-Model.sav'
@@ -462,17 +407,18 @@ def main():
 	ballProperties = np.zeros((1,11))
 	goalProperties = np.zeros((1,10))
 
-	imageNumber = 67
+	imageNumber = 171 #67
 	ballDataNumber = 1
 	goalDataNumber = 1
 	ballNumber = 0
 	goalNumber = 0
-	ballContourLen = 0
+	ballContourLen = np.zeros(3, dtype=int)
 	goalContourLen = 0
 
 	ballMode = 0
 	
-	# loadConfig()
+	loadConfig()
+	
 
 	if runningMode == 0:
 		print 'Running From Live Cam'
@@ -493,7 +439,7 @@ def main():
 		print 'Generate Image Dataset'
 
 	# Image yang akan ditampilkan
-	imageToDisplay = 1
+	imageToDisplay = 0
 	kernel = np.ones((5,5),np.uint8)
 	
 	while(True):
@@ -506,6 +452,8 @@ def main():
 			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
 		# print (fileGambar)
 		rgbImage = cv2.imread(rawImage)
+
+		rgbGamma = gammaCorrection(rgbImage, gamma=10)
 		# ini gak bagus harusnya deklarasi diatas
 
 		fieldMask = np.zeros(rgbImage.shape[:2], np.uint8)
@@ -519,7 +467,8 @@ def main():
 		hsvImage = cv2.cvtColor(rgbImage, cv2.COLOR_BGR2HSV)
 
 		# Field Green Color Filtering
-		
+		# print lowerFieldGr
+		# print upperFieldGr
 		fieldGrBinary = cv2.inRange(hsvBlurImage, lowerFieldGr, upperFieldGr)
 		fieldGrBinaryErode = cv2.erode(fieldGrBinary, kernel, iterations = edFieldGr[0])
  		fieldGrFinal = cv2.dilate(fieldGrBinaryErode, kernel, iterations = edFieldGr[1])
@@ -528,7 +477,7 @@ def main():
 		_, listFieldContours, _ = cv2.findContours(fieldGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		if len(listFieldContours) > 0:
 			fieldContours = sorted(listFieldContours, key=cv2.contourArea, reverse=True)[:1]
-			cv2.drawContours(modRgbImage,[fieldContours[0]],0,(255,255,0),2)
+			cv2.drawContours(modRgbImage,[fieldContours[0]],0,(255,255,0),2, offset=(0,0))
 			cv2.drawContours(fieldMask, [fieldContours[0]], -1, 255, -1)
 			cv2.drawContours(notFieldMask, [fieldContours[0]], -1, 0, -1)
 
@@ -548,9 +497,15 @@ def main():
 
 		# Ball Detection
 		ballFound = False
-		ballContourLen = 0
+		ballContourLen[0] = 0
+		ballContourLen[1] = 0
+		ballContourLen[2] = 0
 		ballIteration = 0
+
+		# Array untuk menampung jumlah contour, idx 0 isinya jumlah contur mode 1 idx 1 jumlah mode 2, 
+		# ballContourLen = np.zeros(3, dtye=int)
 		for ballDetectionMode in range(0, 2):
+			# print ballDetectionMode
 			if ballDetectionMode == 0:
 				_, listBallContours, _ = cv2.findContours(ballGrFinal.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 			else:
@@ -558,7 +513,11 @@ def main():
 
 			if len(listBallContours) > 0:
 				listSortedBallContours = sorted(listBallContours, key=cv2.contourArea, reverse=True)[:5]
-				ballContourLen += len(listSortedBallContours)
+				# if ballDetectionMode == 0:
+				ballContourLen[ballDetectionMode] = len(listSortedBallContours)
+				# elif ballDetectionMode == 1:
+					# ballContourLen[1] = len(listSortedBallContours)
+				ballContourLen[2] = ballContourLen[0] + ballContourLen[1]
 				for ballContour in listSortedBallContours:
 					ballTopLeftX, ballTopLeftY, ballWidth, ballHeight = cv2.boundingRect(ballContour)
 					if runningMode == 0 or runningMode == 1:
@@ -601,6 +560,8 @@ def main():
 							ballFound = True
 							break	
 					elif runningMode == 2:
+						# print ballIteration
+						# print ballNumber
 						if ballNumber == ballIteration:
 							# Machine learning parameter
 							ballMode = ballDetectionMode
@@ -630,7 +591,11 @@ def main():
 							ballHistogram4[0] = float(ballHistogram4[0]) / sumBallHistogram
 							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
 						else:
-							cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
+							# print ballContourLen
+							if ballDetectionMode == 0 and ballNumber < ballContourLen[0]:
+								cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
+							elif ballDetectionMode == 1 and ballNumber >= ballContourLen[0]:
+								cv2.rectangle(modRgbImage, (ballTopLeftX,ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), contourColor, 2)
 						ballIteration += 1
 			if ballFound == True:
 				break
@@ -655,7 +620,6 @@ def main():
 			goalContourLen += len(listSortedGoalContours)
 			for goalContour in listSortedGoalContours:
 				goalTopLeftX, goalTopLeftY, goalWidth, goalHeight = cv2.boundingRect(goalContour)
-				cv2.drawContours(modRgbImage, [goalContour], 0, (0,0,255), 2)
 				if runningMode == 0 or runningMode == 1:
 					goalAspectRatio = float(goalWidth) / float(goalHeight)
 					goalArea = float(cv2.contourArea(goalContour))
@@ -669,6 +633,7 @@ def main():
 						goalSolidity = 0
 										
 					goalRoi = grayscaleImage[goalTopLeftY:goalTopLeftY + goalHeight, goalTopLeftX:goalTopLeftX + goalWidth]
+					goalRoiBinary = goalWhFinal[goalTopLeftY:goalTopLeftY + goalHeight, goalTopLeftX:goalTopLeftX + goalWidth]
 					goalHistogram0, goalHistogram1, goalHistogram2, goalHistogram3, goalHistogram4 = cv2.calcHist([goalRoi], [0], None, [5], [0,256])
 					# Rescaling to percent
 					sumGoalHistogram = float(goalHistogram0[0] + goalHistogram1[0] + goalHistogram2[0] + goalHistogram3[0] + goalHistogram4[0])
@@ -683,9 +648,58 @@ def main():
 					goalProperties = np.delete(goalProperties, -1, axis=0)
 					goalPrediction = goalMLModel.predict_proba(goalProperties)
 
+					
+
 					if goalPrediction[0,1] == 1:
 						# Set variable to skip next step							
 						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), goalColor, 2)
+						# c = max(goalContour, key=cv2.contourArea)
+						# print goalContour
+						# determine the most extreme points along the contour
+						extLeft = tuple(goalContour[goalContour[:, :, 0].argmin()] [0] )
+						# print 'contour'
+						# print goalContour
+						# print goalContour[:,:,0].argmax()
+						extRight = tuple(goalContour[goalContour[:, :, 0].argmax()] [0])
+						extTop = tuple(goalContour[goalContour[:, :, 1].argmin()][0])
+						extBot = tuple(goalContour[goalContour[:, :, 1].argmax()][0])
+						cv2.circle(modRgbImage, extLeft, 8, (0, 0, 255), -1)
+						cv2.circle(modRgbImage, extRight, 8, (0, 255, 0), -1)
+						cv2.circle(modRgbImage, extTop, 8, (255, 0, 0), -1)
+						cv2.circle(modRgbImage, extBot, 8, (255, 255, 0), -1)
+
+						# Pecah jadi 2 bagian
+						goalRoiLeft = goalRoiBinary[0:goalHeight, 0:goalWidth/2]
+						goalRoiRight = goalRoiBinary[0:goalHeight, goalWidth/2:goalWidth-1]
+						
+						# Hitung titik pusat gawang kiri
+						poleMomentPosition = np.zeros((2,2), dtype=int)
+						
+						for goalPolePosition in range(0, 2):
+							# kiri
+							if goalPolePosition == 0:
+								_, listGoalPoleContours, _ = cv2.findContours(goalRoiLeft.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+							elif goalPolePosition == 1:
+								_, listGoalPoleContours, _ = cv2.findContours(goalRoiRight.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+						
+							goalPoleContour = sorted(listGoalPoleContours, key=cv2.contourArea, reverse=True)[:1]
+							goalPoleMoment = cv2.moments(goalPoleContour[0])
+							poleMomentPosition[goalPolePosition, 0] = int(goalPoleMoment["m10"] / goalPoleMoment["m00"]) #x
+							poleMomentPosition[goalPolePosition, 1] = int(goalPoleMoment["m01"] / goalPoleMoment["m00"]) #y
+
+						# Gambar titik moment
+						cv2.circle(modRgbImage, (goalTopLeftX + poleMomentPosition[0,0], goalTopLeftY + poleMomentPosition[0,1]), 7, (50, 100, 255), -1)
+						cv2.circle(modRgbImage, (goalTopLeftX + goalWidth /2 + poleMomentPosition[1,0], goalTopLeftY + poleMomentPosition[1,1]), 7, (50, 100, 255), -1)
+
+						# Cari selisih titik moment y dari tiang 1 dan tiang 2
+						diffMomentPosition = poleMomentPosition[0,1] - poleMomentPosition[1,1]
+						# print diffMomentPosition
+						if diffMomentPosition < -80:
+							print 'tiang kanan'
+						elif diffMomentPosition > 80:
+							print 'TIANG KIRI'
+						else:
+							print 'tiang tengah'
 						goalFound = True
 						break
 
@@ -716,11 +730,14 @@ def main():
 
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		# print 'masuk'
-		if runningMode == 2:
-			textLine = "Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, ballDataNumber)
+		if runningMode == 0 or runningMode == 1:
+			textLine = "Running ==> Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, ballDataNumber)
+			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
+		elif runningMode == 2:
+			textLine = "Train Ball ==> Image : {} Ball : {} Dataset : {}".format(imageNumber, ballNumber, ballDataNumber)
 			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 		elif runningMode == 3:
-			textLine = "Image : {} Goal : {} Dataset : {}".format(imageNumber, goalNumber, goalDataNumber)
+			textLine = "Train Goal ==> Image : {} Goal : {} Dataset : {}".format(imageNumber, goalNumber, goalDataNumber)
 			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 
 		if imageToDisplay == 1:
@@ -744,7 +761,8 @@ def main():
 			edBallGr[0] = cv2.getTrackbarPos('Erode','Control')
 			edBallGr[1] = cv2.getTrackbarPos('Dilate','Control')
 			cv2.imshow("Barelang Vision", modRgbImage)
-			cv2.imshow("Ball Green Binary Image", ballGrFinal)
+			cv2.imshow("Ball Green Binary Image", ballGrBinary)
+			cv2.imshow("Ball Green Final Image", ballGrFinal)
 		elif imageToDisplay == 3: #bola mode 2
 			lowerBallWh[0] = cv2.getTrackbarPos('HMin','Control')
 			lowerBallWh[1] = cv2.getTrackbarPos('SMin','Control')
@@ -767,6 +785,10 @@ def main():
 			edGoalWh[1] = cv2.getTrackbarPos('Dilate','Control')
 			cv2.imshow("Barelang Vision", modRgbImage)
 			cv2.imshow("Goal Binary Image", goalWhFinal)
+		else:
+			cv2.imshow("Barelang Vision", modRgbImage)
+			cv2.imshow("Barelang Visioasn", goalRoiLeft)
+			cv2.imshow("Barelang Visasdioasn", goalRoiRight)
 		
 		'''
 		print '----------BarelangFC-Vision---------------------------------'
@@ -888,10 +910,10 @@ def main():
 				print 'Close All Windows'
 			elif k == ord('n'):
 				imageNumber += 1
-				print 'Next Image'
+				# print 'Next Image'
 			elif k == ord('p'):
 				imageNumber -= 1
-				print 'Previous Image'
+				# print 'Previous Image'
 		# Keyboard shortcut for ball training mode
 		elif runningMode == 2:
 			if k == ord('x'):
@@ -937,7 +959,7 @@ def main():
 				print 'Previous Image'
 			elif k == ord('c'):
 				ballNumber += 1
-				if ballNumber >= ballContourLen:
+				if ballNumber >= ballContourLen[2]:
 					ballNumber = 0
 					imageNumber += 1
 				print 'Next Ball Contour'
@@ -952,21 +974,21 @@ def main():
 				npBallData = np.array([ballDataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
 				npBallDataset = np.insert(npBallDataset, ballDataNumber-1, npBallData, axis=0)
 				ballNumber += 1
-				if ballNumber >= ballContourLen:
+				if ballNumber >= ballContourLen[2]:
 					ballNumber = 0
 					imageNumber += 1
 				ballDataNumber += 1
-				print 'Mark as Ball'
+				# print 'Mark as Ball'
 			elif k == ord('u'):
 				isBall = 0
 				npBallData = np.array([ballDataNumber, ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode, isBall])
 				npBallDataset = np.insert(npBallDataset, ballDataNumber-1, npBallData, axis=0)
 				ballNumber += 1
-				if ballNumber >= ballContourLen:
+				if ballNumber >= ballContourLen[2]:
 					ballNumber = 0
 					imageNumber += 1
 				ballDataNumber += 1
-				print 'Mark as Unknown'
+				# print 'Mark as Unknown'
 			elif k == ord('t'):
 				npBallDataset = np.delete(npBallDataset, -1, axis=0)
 				inputBallTraining = npBallDataset[:,1:12]
@@ -1038,7 +1060,7 @@ def main():
 					goalNumber = 0
 					imageNumber += 1
 				goalDataNumber += 1
-				print 'Mark as Goal'
+				# print 'Mark as Goal'
 			elif k == ord('u'):
 				isGoal = 0
 				npGoalData = np.array([goalDataNumber, goalAspectRatio, goalArea, goalRectArea, goalExtent, goalSolidity, goalHistogram0[0], goalHistogram1[0], goalHistogram2[0], goalHistogram3[0], goalHistogram4[0], isGoal])
@@ -1048,7 +1070,7 @@ def main():
 					goalNumber = 0
 					imageNumber += 1
 				goalDataNumber += 1
-				print 'Mark as Unknown'
+				# print 'Mark as Unknown'
 			elif k == ord('t'):
 				npGoalDataset = np.delete(npGoalDataset, -1, axis=0)
 				inputGoalTraining = npGoalDataset[:,1:11]
