@@ -342,6 +342,9 @@ def gammaCorrection(image, gamma=1.0):
 	return cv2.LUT(image, table)
 
 def main():
+	# print 'Number of arguments:', len(sys.argv), 'arguments.'
+	# print 'Argument List:', str(sys.argv)
+	# sys.exit()
 	# Running Mode
 	# 0 : Running Program
 	# 1 : Test Dataset
