@@ -30,6 +30,7 @@ goalDatasetFilename = 'BarelangFC-GoalDataset.csv'
 goalMLFilename = 'BarelangFC-GoalMLModel.sav'
 
 # Global variable for thresholding
+cameraSetting = np.zeros(10, dtype=int)
 lowerFieldGr = np.zeros(3, dtype=int)
 upperFieldGr = 255 * np.ones(3, dtype=int)
 edFieldGr = np.zeros(2, dtype=int)
@@ -86,6 +87,7 @@ def createTrackbars(mode):
 	# Special for setting blur image
 	# Only available for field setting 
 	# All setting parameter
+	cv2.createTrackbar('Temperature','Control',500,1000,nothing)
 	cv2.createTrackbar('HMin','Control',0,255,nothing)
 	cv2.createTrackbar('SMin','Control',0,255,nothing)
 	cv2.createTrackbar('VMin','Control',0,255,nothing)
@@ -98,6 +100,7 @@ def createTrackbars(mode):
 def loadTrackbars(mode):
 	# Show Field
 	if mode == 1:
+		cv2.setTrackbarPos('Temperature', 'Control', cameraSetting[0])
 		cv2.setTrackbarPos('HMin', 'Control', lowerFieldGr[0])
 		cv2.setTrackbarPos('SMin', 'Control', lowerFieldGr[1])
 		cv2.setTrackbarPos('VMin', 'Control', lowerFieldGr[2])
@@ -108,6 +111,7 @@ def loadTrackbars(mode):
 		cv2.setTrackbarPos('Dilate', 'Control', edFieldGr[1])
 	# Show Ball Green
 	elif mode == 2:
+		cv2.setTrackbarPos('Temperature', 'Control', cameraSetting[0])
 		cv2.setTrackbarPos('HMin', 'Control', lowerBallGr[0])
 		cv2.setTrackbarPos('SMin', 'Control', lowerBallGr[1])
 		cv2.setTrackbarPos('VMin', 'Control', lowerBallGr[2])
@@ -118,6 +122,7 @@ def loadTrackbars(mode):
 		cv2.setTrackbarPos('Dilate', 'Control', edBallGr[1])
 	# Show Ball White
 	elif mode == 3:
+		cv2.setTrackbarPos('Temperature', 'Control', cameraSetting[0])
 		cv2.setTrackbarPos('HMin', 'Control', lowerBallWh[0])
 		cv2.setTrackbarPos('SMin', 'Control', lowerBallWh[1])
 		cv2.setTrackbarPos('VMin', 'Control', lowerBallWh[2])
@@ -128,6 +133,7 @@ def loadTrackbars(mode):
 		cv2.setTrackbarPos('Dilate', 'Control', edBallWh[1])
 	# Show Goal
 	elif mode == 4:
+		cv2.setTrackbarPos('Temperature', 'Control', cameraSetting[0])
 		cv2.setTrackbarPos('HMin', 'Control', lowerGoalWh[0])
 		cv2.setTrackbarPos('SMin', 'Control', lowerGoalWh[1])
 		cv2.setTrackbarPos('VMin', 'Control', lowerGoalWh[2])
@@ -179,6 +185,19 @@ def saveConfig():
 def loadConfig():
 	csvSettingValue = np.genfromtxt(settingValueFilename, dtype=int, delimiter=',', skip_header=True)
 	print csvSettingValue
+	cameraSetting[0] = 0
+	cameraSetting[1] = 32
+	cameraSetting[2] = 64
+	cameraSetting[3] = 0
+
+	cameraSetting[4] = 0 # Auto Focus
+	cameraSetting[5] = 0 # AUto White Ballance
+
+	cameraSetting[6] = 5000
+	cameraSetting[7] = 0 # Auto Exposure 
+	cameraSetting[8] = 250 # Exposure Absolut
+	cameraSetting[9] = 1 # Exposure Auto Priority On
+
 	lowerFieldGr[0] = csvSettingValue[0]
 	lowerFieldGr[1] = csvSettingValue[1]
 	lowerFieldGr[2] = csvSettingValue[2]
@@ -213,6 +232,37 @@ def loadConfig():
 	edGoalWh[1] = csvSettingValue[31]
 	print 'Setting Parameter Loaded'
 
+def setCameraParameter():
+	print "Before Set Camera Setting Parameter"
+	os.system("v4l2-ctl --list-ctrls")
+
+	brightness = "v4l2-ctl --set-ctrl brightness={}".format(cameraSetting[0])
+	contrast = "v4l2-ctl --set-ctrl contrast={}".format(cameraSetting[1])
+	saturation = "v4l2-ctl --set-ctrl saturation={}".format(cameraSetting[2])
+	sharpness = "v4l2-ctl --set-ctrl sharpness={}".format(cameraSetting[3])
+
+	focus_auto = "v4l2-ctl --set-ctrl focus_auto={}".format(cameraSetting[4])
+	white_balance_temperature_auto = "v4l2-ctl --set-ctrl white_balance_temperature_auto={}".format(cameraSetting[5])
+	white_balance_temperature = "v4l2-ctl --set-ctrl white_balance_temperature={}".format(cameraSetting[6])
+	exposure_auto = "v4l2-ctl --set-ctrl exposure_auto={}".format(cameraSetting[7])
+	exposure_absolute = "v4l2-ctl --set-ctrl exposure_absolute={}".format(cameraSetting[8])
+	exposure_auto_priority = "v4l2-ctl --set-ctrl exposure_auto_priority={}".format(cameraSetting[9])
+	
+	os.system(brightness)
+	os.system(contrast)
+	os.system(saturation)
+	os.system(sharpness)
+
+	os.system(focus_auto)
+	os.system(white_balance_temperature_auto)
+	os.system(white_balance_temperature)
+	os.system(exposure_auto_priority)
+	os.system(exposure_auto)
+	os.system(exposure_absolute)
+
+	print "After Set Camera Setting Parameter"
+	os.system("v4l2-ctl --list-ctrls")
+	
 def nothing(x):
 	pass
 
@@ -351,12 +401,13 @@ def main():
 	# 2 : Train Ball
 	# 3 : Train Goal
 	# 4 : Generate Image
-	runningMode = 1
+	runningMode = 0
 
 	# Machine learning model will be saved to this file
 	# Declare the decission tree classifier 
 	ballMLModel = tree.DecisionTreeClassifier()
 	goalMLModel = tree.DecisionTreeClassifier()
+	# print 'oke'
 	# Nanti didefinisikan di global ya
 	contourColor = (0, 255, 0)
 	ballColor = (0, 0, 255)
@@ -406,20 +457,18 @@ def main():
 	except socket.error:
 		print 'Failed to create socket'
 		sys.exit()
-	
+
+	# print os.system("ls")
+	cap = cv2.VideoCapture(0)
+	runningIteration = 0
 	while(True):
 		# Ini nanti diganti dengan load dari file
 		# Create trackbar		
 		if runningMode == 0 or runningMode == 4:
-			# ini nanti diganti dari live cam
-			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
-		if runningMode == 1 or runningMode == 2 or runningMode == 3:
-			rawImage = "D:/RoboCupDataset/normal/gambar_normal_" + str(imageNumber) + ".jpg"
-			# rawImage = "D:/RoboCupDataset/dataset_lighting/my_photo-" + str(imageNumber) + ".jpg"
-		# print (fileGambar)
-		rgbImage = cv2.imread(rawImage)
-
-		# rgbGamma = gammaCorrection(rgbImage, gamma=2.5)
+			_, rgbImage = cap.read()
+		elif runningMode == 1 or runningMode == 2 or runningMode == 3:
+			rawImage = '/home/eko_rudiawan/dataset/gambar_normal_' + str(imageNumber) + '.jpg'
+			rgbImage = cv2.imread(rawImage)
 
 		# ini gak bagus harusnya deklarasi diatas
 		fieldMask = np.zeros(rgbImage.shape[:2], np.uint8)
@@ -736,6 +785,7 @@ def main():
 			cv2.putText(modRgbImage, textLine, (10,20), font, 0.4, (0,0,255), 1, cv2.LINE_AA)
 
 		if imageToDisplay == 1:
+			cameraSetting[6] = cv2.getTrackbarPos('Temperature','Control') * 10
 			lowerFieldGr[0] = cv2.getTrackbarPos('HMin','Control')
 			lowerFieldGr[1] = cv2.getTrackbarPos('SMin','Control')
 			lowerFieldGr[2] = cv2.getTrackbarPos('VMin','Control')
@@ -747,6 +797,7 @@ def main():
 			cv2.imshow("Barelang Vision", modRgbImage)
 			cv2.imshow("Field Binary Image", fieldGrFinal)
 		elif imageToDisplay == 2: #bola mode 1
+			cameraSetting[6] = cv2.getTrackbarPos('Temperature','Control') * 10
 			lowerBallGr[0] = cv2.getTrackbarPos('HMin','Control')
 			lowerBallGr[1] = cv2.getTrackbarPos('SMin','Control')
 			lowerBallGr[2] = cv2.getTrackbarPos('VMin','Control')
@@ -759,6 +810,7 @@ def main():
 			cv2.imshow("Ball Green Binary Image", ballGrBinary)
 			cv2.imshow("Ball Green Final Image", ballGrFinal)
 		elif imageToDisplay == 3: #bola mode 2
+			cameraSetting[6] = cv2.getTrackbarPos('Temperature','Control') * 10
 			lowerBallWh[0] = cv2.getTrackbarPos('HMin','Control')
 			lowerBallWh[1] = cv2.getTrackbarPos('SMin','Control')
 			lowerBallWh[2] = cv2.getTrackbarPos('VMin','Control')
@@ -770,6 +822,7 @@ def main():
 			cv2.imshow("Barelang Vision", modRgbImage)
 			cv2.imshow("Ball White Binary Image", ballWhFinal)
 		elif imageToDisplay == 4:
+			cameraSetting[6] = cv2.getTrackbarPos('Temperature','Control') * 10
 			lowerGoalWh[0] = cv2.getTrackbarPos('HMin','Control')
 			lowerGoalWh[1] = cv2.getTrackbarPos('SMin','Control')
 			lowerGoalWh[2] = cv2.getTrackbarPos('VMin','Control')
@@ -782,45 +835,15 @@ def main():
 			cv2.imshow("Goal Binary Image", goalWhFinal)
 		else:
 			cv2.imshow("Barelang Vision", modRgbImage)
+			
 		
-		'''
-		print '----------BarelangFC-Vision---------------------------------'
-		print '### All Running Mode ### -----------------------------------'	
-		print 'Parse Field -------------------------------------------- [1]'	
-		print 'Parse Ball Green (Mode 1) ------------------------------ [2]'
-		print 'Parse Ball White (Mode 2) ------------------------------ [3]'		
-		print 'Parse Goal --------------------------------------------- [4]'
-		print 'Save Filter Config ------------------------------------- [S]'
-		print 'Load Filter Config ------------------------------------- [L]'
-		print 'Destroy All Windows ------------------------------------ [0]'
-		print 'Help --------------------------------------------------- [H]'
-		print 'Exit BarelangFC-Vision --------------------------------- [X]'
-		print '### Testing Mode ### ---------------------------------------'
-		print 'Next Image --------------------------------------------- [N]'
-		print 'Previous Image ----------------------------------------- [P]'
-		print '### Training Mode ### --------------------------------------'
-		print 'Next Contour ------------------------------------------- [C]'
-		print 'Previous Contour --------------------------------------- [Z]'
-		print '### Ball Training Mode ### ---------------------------------'
-		print 'Mark as Ball ------------------------------------------- [B]'
-		print 'Mark as Not Ball --------------------------------------- [U]'
-		print 'Train Ball Dataset and Save ML Model ------------------- [T]'
-		print 'Save Ball Dataset to CSV ------------------------------- [D]'
-		print 'Load Ball Dataset from CSV, Train and Save ML Model ---- [M]' 
-		print '### Goal Training Mode ### ---------------------------------'
-		print 'Mark as Goal ------------------------------------------- [G]'
-		print 'Mark as Not Goal --------------------------------------- [U]'
-		print 'Train Goal Dataset and Save ML Model ------------------- [T]'
-		print 'Save Goal Dataset to CSV ------------------------------- [D]'
-		print 'Load Goal Dataset from CSV, Train and Save ML Model ---- [M]' 
-		'''
 		# Waiting keyboard interrupt
 		k = cv2.waitKey(1)
 		# Keyboard shortcut for running mode
 		if runningMode == 0:
 			if k == ord('x'):
 				imageToDisplay = 0
-				cv2.destroyAllWindows()
+				cv2.destroyAllWindows()				
 				print 'Exit Program'
 				break
 			elif k == ord('1'):
@@ -858,6 +881,10 @@ def main():
 				imageToDisplay = 0
 				cv2.destroyAllWindows()
 				print 'Close All Windows'
+			elif k == ord('/'):
+				setCameraParameter()
+				print 'setting done'
+			
 		# Keyboard Shortcut for Dataset Testing From Image
 		elif runningMode == 1:
 			# print 'asdasd'
@@ -994,6 +1021,7 @@ def main():
 				print 'Save Ball Dataset to CSV'
 			elif k == ord('m'):
 				print 'Load CSV Dataset, Train and Save Model'
+			
 		# Keyboard shortcut for goal training mode
 		elif runningMode == 3:
 			if k == ord('x'):
@@ -1075,6 +1103,9 @@ def main():
 				print 'Save Goal Dataset to CSV'
 			elif k == ord('m'):
 				print 'Load CSV Goal Dataset, Train and Save Model'
+	cap.release()
+	cv2.destroyAllWindows()
+	
 
 '''
 def main_lama():
