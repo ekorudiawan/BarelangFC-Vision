@@ -7,6 +7,7 @@
 ######################################################################
 
 # Standard imports
+from flask import Flask, render_template, Response
 import os
 import cv2
 import numpy as np
@@ -429,9 +430,10 @@ def main():
 	ballMode = 0
 	
 	loadConfig()
-	
 	if runningMode == 0:
 		print 'Running From Live Cam'
+		# Open Camera
+		cap = cv2.VideoCapture(0)
 		# Program run from live camera
 		# load machine learning model from file
 		ballMLModel = joblib.load(ballMLFilename)
@@ -460,8 +462,11 @@ def main():
 		sys.exit()
 
 	# print os.system("ls")
-	cap = cv2.VideoCapture(0)
+	
+	
 	runningIteration = 0
+	# Run streaming
+	
 	while(True):
 		# Ini nanti diganti dengan load dari file
 		# Create trackbar		
@@ -707,9 +712,12 @@ def main():
 								_, listGoalPoleContours, _ = cv2.findContours(goalRoiRight.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 							goalPoleContour = sorted(listGoalPoleContours, key=cv2.contourArea, reverse=True)[:1]
 							goalPoleMoment = cv2.moments(goalPoleContour[0])
-							poleMomentPosition[goalPolePosition, 0] = int(goalPoleMoment["m10"] / goalPoleMoment["m00"]) #x
-							poleMomentPosition[goalPolePosition, 1] = int(goalPoleMoment["m01"] / goalPoleMoment["m00"]) #y
-
+							# Kurang exception div by zero
+							try:
+								poleMomentPosition[goalPolePosition, 0] = int(goalPoleMoment["m10"] / goalPoleMoment["m00"]) #x
+								poleMomentPosition[goalPolePosition, 1] = int(goalPoleMoment["m01"] / goalPoleMoment["m00"]) #y
+							except:
+								continue
 						# Gambar titik moment
 						showMoment = True
 						if showMoment == True:
@@ -837,7 +845,7 @@ def main():
 		else:
 			cv2.imshow("Barelang Vision", modRgbImage)
 			
-		
+		cv2.imwrite('t.jpg',modRgbImage)
 		# Waiting keyboard interrupt
 		k = cv2.waitKey(1)
 		# Keyboard shortcut for running mode
@@ -1104,6 +1112,8 @@ def main():
 				print 'Save Goal Dataset to CSV'
 			elif k == ord('m'):
 				print 'Load CSV Goal Dataset, Train and Save Model'
+
+		
 	cap.release()
 	cv2.destroyAllWindows()
 	
@@ -1621,4 +1631,7 @@ def main_lama():
 	cv2.destroyAllWindows()
 '''
 if __name__ == "__main__":
-    main()
+	# app.run(host='0.0.0.0', debug=True, threaded=True)
+	main()
+
+    
