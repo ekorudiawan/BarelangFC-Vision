@@ -291,6 +291,7 @@ def orderPoints(pts):
 IMAGE_WIDTH = 640
 HALF_IMAGE_WIDTH = IMAGE_WIDTH / 2
 IMAGE_HEIGHT = 480
+IMAGE_AREA = IMAGE_HEIGHT * IMAGE_WIDTH
 
 def transToImgFrame(x,y):
     # x = x + 160
@@ -542,12 +543,12 @@ def main():
 						# Aspect Ratio is the ratio of width to height of bounding rect of the object.
 						ballAspectRatio = float(ballWidth) / float(ballHeight)
 						# Extent is the ratio of contour area to bounding rectangle area.
-						ballArea = float(cv2.contourArea(ballContour))
-						ballRectArea = float(ballWidth) * float(ballHeight)
+						ballArea = float(cv2.contourArea(ballContour)) / float(IMAGE_AREA)
+						ballRectArea = (float(ballWidth) * float(ballHeight)) / float(IMAGE_AREA)
 						ballExtent = float(ballArea) / float(ballRectArea)
 						# Solidity is the ratio of contour area to its convex hull area.
 						ballHull = cv2.convexHull(ballContour)
-						ballHullArea = cv2.contourArea(ballHull)
+						ballHullArea = cv2.contourArea(ballHull) / float(IMAGE_AREA)
 						if ballHullArea > 0:
 							ballSolidity = float(ballArea) / float(ballHullArea)
 						else:
@@ -589,12 +590,12 @@ def main():
 							# Aspect Ratio is the ratio of width to height of bounding rect of the object.
 							ballAspectRatio = float(ballWidth) / float(ballHeight)
 							# Extent is the ratio of contour area to bounding rectangle area.
-							ballArea = float(cv2.contourArea(ballContour))
-							ballRectArea = float(ballWidth) * float(ballHeight)
+							ballArea = float(cv2.contourArea(ballContour)) / float(IMAGE_AREA)
+							ballRectArea = (float(ballWidth) * float(ballHeight)) / float(IMAGE_AREA)
 							ballExtent = float(ballArea) / float(ballRectArea)
 							# Solidity is the ratio of contour area to its convex hull area.
 							ballHull = cv2.convexHull(ballContour)
-							ballHullArea = cv2.contourArea(ballHull)
+							ballHullArea = cv2.contourArea(ballHull) / float(IMAGE_AREA)
 
 							if ballHullArea > 0:
 								ballSolidity = float(ballArea) / float(ballHullArea)
@@ -649,11 +650,11 @@ def main():
 				goalTopLeftX, goalTopLeftY, goalWidth, goalHeight = cv2.boundingRect(goalContour)
 				if runningMode == 0 or runningMode == 1:
 					goalAspectRatio = float(goalWidth) / float(goalHeight)
-					goalArea = float(cv2.contourArea(goalContour))
-					goalRectArea = float(goalWidth) * float(goalHeight)
+					goalArea = float(cv2.contourArea(goalContour)) / float(IMAGE_AREA)
+					goalRectArea = (float(goalWidth) * float(goalHeight)) / float(IMAGE_AREA)
 					goalExtent = float(goalArea) / float(goalRectArea)
 					goalHull = cv2.convexHull(goalContour)
-					goalHullArea = cv2.contourArea(goalHull)
+					goalHullArea = cv2.contourArea(goalHull) / float(IMAGE_AREA)
 					if goalHullArea > 0:
 						goalSolidity = float(goalArea) / float(goalHullArea)
 					else:
@@ -741,11 +742,11 @@ def main():
 				elif runningMode == 3:
 					if goalNumber == goalIteration:
 						goalAspectRatio = float(goalWidth) / float(goalHeight)
-						goalArea = float(cv2.contourArea(goalContour))
-						goalRectArea = float(goalWidth) * float(goalHeight)
+						goalArea = float(cv2.contourArea(goalContour)) / float(IMAGE_AREA)
+						goalRectArea = (float(goalWidth) * float(goalHeight)) / float(IMAGE_AREA)
 						goalExtent = float(goalArea) / float(goalRectArea)
 						goalHull = cv2.convexHull(goalContour)
-						goalHullArea = cv2.contourArea(goalHull)
+						goalHullArea = cv2.contourArea(goalHull) / float(IMAGE_AREA)
 						if goalHullArea > 0:
 							goalSolidity = float(goalArea) / float(goalHullArea)
 						else:
