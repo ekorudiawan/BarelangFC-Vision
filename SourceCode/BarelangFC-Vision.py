@@ -55,6 +55,7 @@ port = 2000
 # Flask Webserver
 ##############################################################################
 # Definisi ID robot
+
 robotid = 1
 
 app = Flask(__name__)
@@ -432,7 +433,7 @@ def main():
 	# 4 : Generate Image
 	# 5 : Running With Browser Streaming
 
-	runningMode = 5
+	runningMode = 1
 
 	# Machine learning model will be saved to this file
 	# Declare the decission tree classifier 
@@ -448,7 +449,7 @@ def main():
 	ballProperties = np.zeros((1,11))
 	goalProperties = np.zeros((1,10))
 
-	imageNumber = 5 # 171 #67
+	imageNumber = 67 # 171 #67
 	ballDataNumber = 1
 	goalDataNumber = 1
 	ballNumber = 0
@@ -593,29 +594,43 @@ def main():
 						ballHistogram0, ballHistogram1, ballHistogram2, ballHistogram3, ballHistogram4 = cv2.calcHist([ballRoi],[0],None,[5],[0,256])
 						# Rescaling to percent
 						sumBallHistogram = float(ballHistogram0[0] + ballHistogram1[0] + ballHistogram2[0] + ballHistogram3[0] + ballHistogram4[0])
-						ballHistogram0[0] = float(ballHistogram0[0]) / sumBallHistogram
-						ballHistogram1[0] = float(ballHistogram1[0]) / sumBallHistogram
-						ballHistogram2[0] = float(ballHistogram2[0]) / sumBallHistogram
-						ballHistogram3[0] = float(ballHistogram3[0]) / sumBallHistogram
-						ballHistogram4[0] = float(ballHistogram4[0]) / sumBallHistogram
+						ballHistogram0[0] = float(ballHistogram0[0]) / sumBallHistogram * 100.0
+						ballHistogram1[0] = float(ballHistogram1[0]) / sumBallHistogram * 100.0
+						ballHistogram2[0] = float(ballHistogram2[0]) / sumBallHistogram * 100.0
+						ballHistogram3[0] = float(ballHistogram3[0]) / sumBallHistogram * 100.0
+						ballHistogram4[0] = float(ballHistogram4[0]) / sumBallHistogram * 100.0
 						ballParameter = np.array([ballAspectRatio, ballArea, ballRectArea, ballExtent, ballSolidity, ballHistogram0[0], ballHistogram1[0], ballHistogram2[0], ballHistogram3[0], ballHistogram4[0], ballMode])
 						ballProperties = np.insert(ballProperties, 0, ballParameter , axis = 0)
 						ballProperties = np.delete(ballProperties, -1, axis=0)
 						ballPrediction = ballMLModel.predict_proba(ballProperties)
 						# print ballPrediction
 						# Yes, it is a ball
-						if ballPrediction[0,1] == 1:
-							# Set variable to skip next step							
-							cv2.rectangle(modRgbImage, (ballTopLeftX, ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
-							detectedBall[0] = ballTopLeftX + ballWidth / 2 # Centre X
-							detectedBall[1] = ballTopLeftY + ballHeight / 2 # Centre Y
-							detectedBall[2] = ballWidth
-							detectedBall[3] = ballHeight
-							ballDistance = 0
-							detectedBall[4] = ballDistance
+						useMachineLearning = False
 
-							ballFound = True
-							break	
+						if useMachineLearning == True:
+							if ballPrediction[0,1] == 1:
+								# Set variable to skip next step							
+								cv2.rectangle(modRgbImage, (ballTopLeftX, ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+								detectedBall[0] = ballTopLeftX + ballWidth / 2 # Centre X
+								detectedBall[1] = ballTopLeftY + ballHeight / 2 # Centre Y
+								detectedBall[2] = ballWidth
+								detectedBall[3] = ballHeight
+								ballDistance = 0
+								detectedBall[4] = ballDistance
+
+								ballFound = True
+								break	
+						else:
+							ballRadius = ballWidth / 2.00
+							print 'ballArea = {} ballAspectRatio = {} ballHistogram0[0] = {} ballRadius = {}'.format(ballArea, ballAspectRatio, ballHistogram0[0], ballRadius)
+							if ballDetectionMode == 0:
+								if ballArea >= 0.002:
+									if ballAspectRatio >= 0.7 and ballAspectRatio <= 1.5: # 0.5 2.7
+										if ballHistogram4[0] >= 0.4: # Ball must have minimal 50% white pixel
+											ballFound = True
+											cv2.rectangle(modRgbImage, (ballTopLeftX, ballTopLeftY), (ballTopLeftX + ballWidth, ballTopLeftY + ballHeight), ballColor, 2)
+											break
+							# elif ballDetectionMode == 1:
 					elif runningMode == 2:
 						# print ballIteration
 						# print ballNumber
@@ -1154,7 +1169,9 @@ def main():
 	cv2.destroyAllWindows()
 	
 if __name__ == "__main__":
-	app.run(host='0.0.0.0', port=3333, debug=True, threaded=True)
+	# main()
+	print 'hello'
+	# app.run(host='0.0.0.0', port=3333, debug=False, threaded=False)
 
 '''
 # Decision Tree Ball Detection
