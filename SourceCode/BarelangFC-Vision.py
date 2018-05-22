@@ -54,6 +54,9 @@ port = 2000
 
 # Flask Webserver
 ##############################################################################
+# Definisi ID robot
+robotid = 1
+
 app = Flask(__name__)
 
 def shutdown_server():
@@ -70,7 +73,7 @@ def shutdown():
 @app.route('/')
 def index():
     """Video streaming home page."""
-    return render_template('index.html')
+    return render_template('index.html',robotid=robotid)
 
 @app.route('/video_feed')
 def video_feed():
@@ -421,9 +424,6 @@ def gammaCorrection(image, gamma=1.0):
 	return cv2.LUT(image, table)
 
 def main():
-	# print 'Number of arguments:', len(sys.argv), 'arguments.'
-	# print 'Argument List:', str(sys.argv)
-	# sys.exit()
 	# Running Mode
 	# 0 : Running Program
 	# 1 : Test Dataset
