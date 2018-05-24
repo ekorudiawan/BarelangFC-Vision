@@ -1190,8 +1190,9 @@ def main():
 		elif runningMode == 5:
 			cv2.imwrite('stream.jpg', modRgbImage)
 			yield (b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + open('stream.jpg', 'rb').read() + b'\r\n')
-	
-	cap.release()
+			
+	if runningMode == 0 or runningMode == 5:
+		cap.release()
 	cv2.destroyAllWindows()
 	
 if __name__ == "__main__":
