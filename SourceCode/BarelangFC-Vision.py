@@ -8,6 +8,7 @@
 
 # Standard imports
 from flask import Flask, render_template, Response, request
+from scipy.spatial import distance
 import os
 import cv2
 import numpy as np
@@ -338,7 +339,8 @@ def polToCart(radius, theta):
     return (x,y)
 
 def distancePointToPoint(p0, p1):
-    return math.sqrt(((p1[0]-p0[0])*(p1[0]-p0[0])) + ((p1[1]-p0[1])*(p1[1]-p0[1])))
+    # return math.sqrt(((p1[0]-p0[0])*(p1[0]-p0[0])) + ((p1[1]-p0[1])*(p1[1]-p0[1])))
+	return distance.euclidean(p0, p1)
 
 def rectToPoints(rectTopLeftX, rectTopLeftY, rectWidth, rectHeight):
     npPtRect = np.zeros((4,2), dtype=int)
@@ -503,7 +505,10 @@ def main():
 		if runningMode == 0 or runningMode == 4 or runningMode == 5:
 			_, rgbImage = cap.read()
 		elif runningMode == 1 or runningMode == 2 or runningMode == 3:
-			rawImage = '/home/eko_rudiawan/dataset/gambar_normal_' + str(imageNumber) + '.jpg'
+			# Linux
+			# rawImage = '/home/eko_rudiawan/dataset/gambar_normal_' + str(imageNumber) + '.jpg'
+			# Windows
+			rawImage = 'D:/RoboCupDataset/normal/gambar_normal_' + str(imageNumber) + '.jpg'
 			rgbImage = cv2.imread(rawImage)
 
 		# ini gak bagus harusnya deklarasi diatas
@@ -605,7 +610,7 @@ def main():
 						ballPrediction = ballMLModel.predict_proba(ballProperties)
 						# print ballPrediction
 						# Yes, it is a ball
-						useMachineLearning = False
+						useMachineLearning = True
 
 						if useMachineLearning == True:
 							if ballPrediction[0,1] == 1:
@@ -728,21 +733,42 @@ def main():
 
 					if goalPrediction[0,1] == 1:
 						cv2.rectangle(modRgbImage, (goalTopLeftX,goalTopLeftY), (goalTopLeftX + goalWidth, goalTopLeftY + goalHeight), goalColor, 2)
-						# Ini nanti dijadikan array aja
-						poleLeftBottom = tuple(goalContour[goalContour[:, :, 0].argmin()] [0] )
-						poleRightUp = tuple(goalContour[goalContour[:, :, 0].argmax()] [0])
-						poleLeftUp = tuple(goalContour[goalContour[:, :, 1].argmin()][0])
-						poleRightBottom = tuple(goalContour[goalContour[:, :, 1].argmax()][0])
+						# print 'Contour'
+						# print goalContour[:,0,:]
+						npGoalContourPoint = goalContour[:,0,:]
+						# Create numpy ROI rectangle points
+						npRoiTopLeft = np.array([[goalTopLeftX, goalTopLeftY]])
+						npRoiTopRight = np.array([[(goalTopLeftX + goalWidth), goalTopLeftY]])
+						npRoiBottomRight = np.array([[(goalTopLeftX + goalWidth), (goalTopLeftY + goalHeight)]])
+						npRoiBottomLeft = np.array([[goalTopLeftX, (goalTopLeftY + goalHeight)]])
+						# Gambar titik
+						# cv2.circle(modRgbImage, tuple(npRoiTopLeft), 8, (0, 0, 255), -1)
+						# cv2.circle(modRgbImage, tuple(npRoiTopRight), 8, (0, 255, 0), -1)
+						# cv2.circle(modRgbImage, tuple(npRoiBottomRight), 8, (255, 0, 0), -1)
+						# cv2.circle(modRgbImage, tuple(npRoiBottomLeft), 8, (255, 255, 0), -1)
+
+						# Find minimum distance from ROI points to contour
+						npDistanceResult = distance.cdist(npRoiTopLeft, npGoalContourPoint, 'euclidean')
+						poleTopLeft = tuple(npGoalContourPoint[np.argmin(npDistanceResult),:])
+						
+						npDistanceResult = distance.cdist(npRoiTopRight, npGoalContourPoint, 'euclidean')
+						poleTopRight = tuple(npGoalContourPoint[np.argmin(npDistanceResult),:])
+
+						npDistanceResult = distance.cdist(npRoiBottomRight, npGoalContourPoint, 'euclidean')
+						poleBottomRight = tuple(npGoalContourPoint[np.argmin(npDistanceResult),:])
+
+						npDistanceResult = distance.cdist(npRoiBottomLeft, npGoalContourPoint, 'euclidean')
+						poleBottomLeft = tuple(npGoalContourPoint[np.argmin(npDistanceResult),:])
 
 						showPole = True
 						if showPole == True:
-							cv2.circle(modRgbImage, poleLeftBottom, 8, (0, 0, 255), -1)
-							cv2.circle(modRgbImage, poleRightUp, 8, (0, 255, 0), -1)
-							cv2.circle(modRgbImage, poleLeftUp, 8, (255, 0, 0), -1)
-							cv2.circle(modRgbImage, poleRightBottom, 8, (255, 255, 0), -1)
+							cv2.circle(modRgbImage, poleBottomLeft, 8, (0, 0, 255), -1)
+							cv2.circle(modRgbImage, poleTopRight, 8, (0, 255, 0), -1)
+							cv2.circle(modRgbImage, poleTopLeft, 8, (255, 0, 0), -1)
+							cv2.circle(modRgbImage, poleBottomRight, 8, (255, 255, 0), -1)
 
-						poleLeftHeight = np.linalg.norm(np.array(poleLeftUp)-np.array(poleLeftBottom))
-						poleRightHeight = np.linalg.norm(np.array(poleRightUp)-np.array(poleRightBottom))
+						poleLeftHeight = np.linalg.norm(np.array(poleTopLeft)-np.array(poleBottomLeft))
+						poleRightHeight = np.linalg.norm(np.array(poleTopRight)-np.array(poleBottomRight))
 
 						# Pecah jadi 2 bagian
 						goalRoiLeft = goalRoiBinary[0:goalHeight, 0:goalWidth/2]
@@ -764,7 +790,7 @@ def main():
 							except:
 								continue
 						# Gambar titik moment
-						showMoment = True
+						showMoment = False
 						if showMoment == True:
 							cv2.circle(modRgbImage, (goalTopLeftX + poleMomentPosition[0,0], goalTopLeftY + poleMomentPosition[0,1]), 7, (50, 100, 255), -1)
 							cv2.circle(modRgbImage, (goalTopLeftX + goalWidth/2 + poleMomentPosition[1,0], goalTopLeftY + poleMomentPosition[1,1]), 7, (50, 100, 255), -1)
@@ -1170,8 +1196,8 @@ def main():
 	
 if __name__ == "__main__":
 	# main()
-	print 'hello'
-	# app.run(host='0.0.0.0', port=3333, debug=False, threaded=False)
+	print 'Running BarelangFC-Vision'
+	app.run(host='0.0.0.0', port=3333, debug=True, threaded=True)
 
 '''
 # Decision Tree Ball Detection
